@@ -1,0 +1,119 @@
+{
+  "dataRoles": [
+    {
+      "name": "category",
+      "displayName": "Window",
+      "description": "Time window label (e.g. '7 Day', '14 Day')",
+      "kind": "Grouping"
+    },
+    {
+      "name": "rate",
+      "displayName": "Callback rate",
+      "description": "Percentage callback rate for each window",
+      "kind": "Measure"
+    },
+    {
+      "name": "callbackCount",
+      "displayName": "Callback count",
+      "description": "Number of members who returned",
+      "kind": "Measure"
+    },
+    {
+      "name": "totalCount",
+      "displayName": "Total members",
+      "description": "Total missed-opportunity members",
+      "kind": "Measure"
+    },
+    {
+      "name": "lostCount",
+      "displayName": "Lost members",
+      "description": "Members who did not return",
+      "kind": "Measure"
+    },
+    {
+      "name": "lostRevenue",
+      "displayName": "Lost revenue",
+      "description": "Estimated revenue lost from non-returning members",
+      "kind": "Measure"
+    }
+  ],
+  "dataViewMappings": [
+    {
+      "categorical": {
+        "categories": {
+          "select": [
+            { "for": { "in": "category" } }
+          ],
+          "dataReductionAlgorithm": { "top": { "count": 10 } }
+        },
+        "values": {
+          "select": [
+            { "for": { "in": "rate" } },
+            { "for": { "in": "callbackCount" } },
+            { "for": { "in": "totalCount" } },
+            { "for": { "in": "lostCount" } },
+            { "for": { "in": "lostRevenue" } }
+          ]
+        }
+      }
+    }
+  ],
+  "objects": {
+    "callbackCardStyle": {
+      "properties": {
+        "panelBackground": {
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "panelRadius": {
+          "type": { "numeric": true }
+        },
+        "panelPadding": {
+          "type": { "numeric": true }
+        },
+        "panelGap": {
+          "type": { "numeric": true }
+        },
+        "rateFontSize": {
+          "type": { "numeric": true }
+        },
+        "rateColor1": {
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "rateColor2": {
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "labelFontSize": {
+          "type": { "numeric": true }
+        },
+        "detailFontSize": {
+          "type": { "numeric": true }
+        },
+        "lostRevenueColor": {
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "showCallbackCount": {
+          "type": { "bool": true }
+        },
+        "showLostCount": {
+          "type": { "bool": true }
+        },
+        "showLostRevenue": {
+          "type": { "bool": true }
+        },
+        "layout": {
+          "type": { "enumeration": [
+            { "displayName": "Horizontal", "value": "horizontal" },
+            { "displayName": "Vertical", "value": "vertical" }
+          ] }
+        },
+        "labelColor": {
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "detailColor": {
+          "type": { "fill": { "solid": { "color": true } } }
+        }
+      }
+    }
+  },
+  "privileges": []
+}

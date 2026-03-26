@@ -1,0 +1,21 @@
+{
+  "visual": {
+    "name": "optiStockCallbackCard",
+    "displayName": "OptiStock Callback Comparison Card",
+    "guid": "optiStockCallbackCardF6E5D4C3B2A19087C6D5E4F3A2B1C0D9",
+    "visualClassName": "Visual",
+    "version": "1.0.0.0",
+    "description": "Side-by-side metric panels comparing callback rates across time windows with headline rate, counts, and lost revenue.",
+    "supportUrl": "https://nexusai.nexus"
+  },
+  "apiVersion": "5.9.1",
+  "author": {
+    "name": "Neil Armstrong",
+    "email": "neil@nexusai.nexus"
+  },
+  "assets": {
+    "icon": "assets/icon.png"
+  },
+  "style": "style/visual.less",
+  "capabilities": "capabilities.json"
+}
