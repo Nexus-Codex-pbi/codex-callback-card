@@ -1,21 +1,22 @@
 {
   "visual": {
-    "name": "optiStockCallbackCard",
-    "displayName": "OptiStock Callback Comparison Card",
-    "guid": "optiStockCallbackCardF6E5D4C3B2A19087C6D5E4F3A2B1C0D9",
+    "name": "codexCallbackCard",
+    "displayName": "Codex Callback Card",
+    "guid": "codexCallbackCardF6E5D4C3B2A19087C6D5E4F3A2B1C0D9",
     "visualClassName": "Visual",
     "version": "1.0.0.0",
     "description": "Side-by-side metric panels comparing callback rates across time windows with headline rate, counts, and lost revenue.",
-    "supportUrl": "https://nexusai.nexus"
+    "supportUrl": "https://nexuscodex.nexus/support"
   },
-  "apiVersion": "5.9.1",
+  "apiVersion": "5.10.0",
   "author": {
-    "name": "Neil Armstrong",
-    "email": "neil@nexusai.nexus"
+    "name": "Nexus Codex",
+    "email": "support@nexuscodex.nexus"
   },
   "assets": {
     "icon": "assets/icon.png"
   },
   "style": "style/visual.less",
-  "capabilities": "capabilities.json"
+  "capabilities": "capabilities.json",
+  "stringResources": ["stringResources/en-US/resources.resjson"]
 }

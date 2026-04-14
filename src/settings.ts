@@ -3,14 +3,17 @@ import FormattingSettingsCard = formattingSettings.SimpleCard;
 import FormattingSettingsSlice = formattingSettings.Slice;
 import FormattingSettingsModel = formattingSettings.Model;
 
+const ConstantOrRule = powerbi.VisualEnumerationInstanceKinds.ConstantOrRule;
+
 export class CallbackCardSettings extends FormattingSettingsCard {
     name = "callbackCardStyle";
-    displayName = "Callback Card";
+    displayName = "Comparison Card";
 
     panelBackground = new formattingSettings.ColorPicker({
         name: "panelBackground",
         displayName: "Panel background",
         value: { value: "#f5f4f0" },
+        instanceKind: ConstantOrRule
     });
 
     panelRadius = new formattingSettings.NumUpDown({
@@ -33,20 +36,29 @@ export class CallbackCardSettings extends FormattingSettingsCard {
 
     rateFontSize = new formattingSettings.NumUpDown({
         name: "rateFontSize",
-        displayName: "Rate font size",
+        displayName: "Headline font size",
         value: 28,
+    });
+
+    rateFormatString = new formattingSettings.TextInput({
+        name: "rateFormatString",
+        displayName: "Headline format string",
+        value: "0.0",
+        placeholder: "e.g. 0.0, 0.00, 0",
     });
 
     rateColor1 = new formattingSettings.ColorPicker({
         name: "rateColor1",
-        displayName: "Rate colour (panel 1)",
+        displayName: "Headline colour (panel 1)",
         value: { value: "#d4920a" },
+        instanceKind: ConstantOrRule
     });
 
     rateColor2 = new formattingSettings.ColorPicker({
         name: "rateColor2",
-        displayName: "Rate colour (panel 2)",
+        displayName: "Headline colour (panel 2)",
         value: { value: "#007064" },
+        instanceKind: ConstantOrRule
     });
 
     labelFontSize = new formattingSettings.NumUpDown({
@@ -63,25 +75,26 @@ export class CallbackCardSettings extends FormattingSettingsCard {
 
     lostRevenueColor = new formattingSettings.ColorPicker({
         name: "lostRevenueColor",
-        displayName: "Lost revenue colour",
+        displayName: "Highlight value colour",
         value: { value: "#e60e22" },
+        instanceKind: ConstantOrRule
     });
 
-    showCallbackCount = new formattingSettings.ToggleSwitch({
-        name: "showCallbackCount",
-        displayName: "Show callback count",
+    showMetric1 = new formattingSettings.ToggleSwitch({
+        name: "showMetric1",
+        displayName: "Show metric 1",
         value: true,
     });
 
-    showLostCount = new formattingSettings.ToggleSwitch({
-        name: "showLostCount",
-        displayName: "Show lost count",
+    showMetric3 = new formattingSettings.ToggleSwitch({
+        name: "showMetric3",
+        displayName: "Show metric 3",
         value: true,
     });
 
-    showLostRevenue = new formattingSettings.ToggleSwitch({
-        name: "showLostRevenue",
-        displayName: "Show lost revenue",
+    showHighlightValue = new formattingSettings.ToggleSwitch({
+        name: "showHighlightValue",
+        displayName: "Show highlight value",
         value: true,
     });
 
@@ -99,12 +112,14 @@ export class CallbackCardSettings extends FormattingSettingsCard {
         name: "labelColor",
         displayName: "Label colour",
         value: { value: "#5e5d5a" },
+        instanceKind: ConstantOrRule
     });
 
     detailColor = new formattingSettings.ColorPicker({
         name: "detailColor",
         displayName: "Detail colour",
         value: { value: "#5e5d5a" },
+        instanceKind: ConstantOrRule
     });
 
     slices: FormattingSettingsSlice[] = [
@@ -113,14 +128,15 @@ export class CallbackCardSettings extends FormattingSettingsCard {
         this.panelPadding,
         this.panelGap,
         this.rateFontSize,
+        this.rateFormatString,
         this.rateColor1,
         this.rateColor2,
         this.labelFontSize,
         this.detailFontSize,
         this.lostRevenueColor,
-        this.showCallbackCount,
-        this.showLostCount,
-        this.showLostRevenue,
+        this.showMetric1,
+        this.showMetric3,
+        this.showHighlightValue,
         this.layout,
         this.labelColor,
         this.detailColor,

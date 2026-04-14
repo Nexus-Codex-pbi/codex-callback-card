@@ -2,38 +2,44 @@
   "dataRoles": [
     {
       "name": "category",
-      "displayName": "Window",
-      "description": "Time window label (e.g. '7 Day', '14 Day')",
+      "displayName": "Panel label",
+      "description": "Category label for each comparison panel",
       "kind": "Grouping"
     },
     {
       "name": "rate",
-      "displayName": "Callback rate",
-      "description": "Percentage callback rate for each window",
+      "displayName": "Headline value",
+      "description": "Primary metric displayed prominently in each panel",
       "kind": "Measure"
     },
     {
       "name": "callbackCount",
-      "displayName": "Callback count",
-      "description": "Number of members who returned",
+      "displayName": "Metric 1",
+      "description": "First supporting metric per panel",
       "kind": "Measure"
     },
     {
       "name": "totalCount",
-      "displayName": "Total members",
-      "description": "Total missed-opportunity members",
+      "displayName": "Metric 2",
+      "description": "Second supporting metric per panel",
       "kind": "Measure"
     },
     {
       "name": "lostCount",
-      "displayName": "Lost members",
-      "description": "Members who did not return",
+      "displayName": "Metric 3",
+      "description": "Third supporting metric per panel",
       "kind": "Measure"
     },
     {
       "name": "lostRevenue",
-      "displayName": "Lost revenue",
-      "description": "Estimated revenue lost from non-returning members",
+      "displayName": "Highlight value",
+      "description": "Highlighted metric displayed in accent colour per panel",
+      "kind": "Measure"
+    },
+    {
+      "name": "sortOrder",
+      "displayName": "Sort Order",
+      "description": "Numeric value to control panel display order (ascending)",
       "kind": "Measure"
     }
   ],
@@ -52,7 +58,8 @@
             { "for": { "in": "callbackCount" } },
             { "for": { "in": "totalCount" } },
             { "for": { "in": "lostCount" } },
-            { "for": { "in": "lostRevenue" } }
+            { "for": { "in": "lostRevenue" } },
+            { "for": { "in": "sortOrder" } }
           ]
         }
       }
@@ -91,13 +98,13 @@
         "lostRevenueColor": {
           "type": { "fill": { "solid": { "color": true } } }
         },
-        "showCallbackCount": {
+        "showMetric1": {
           "type": { "bool": true }
         },
-        "showLostCount": {
+        "showMetric3": {
           "type": { "bool": true }
         },
-        "showLostRevenue": {
+        "showHighlightValue": {
           "type": { "bool": true }
         },
         "layout": {
@@ -113,6 +120,17 @@
           "type": { "fill": { "solid": { "color": true } } }
         }
       }
+    }
+  },
+  "supportsHighlight": true,
+  "supportsKeyboardFocus": true,
+  "supportsLandingPage": true,
+  "supportsEmptyDataView": true,
+  "supportsMultiVisualSelection": true,
+  "tooltips": {
+    "supportedTypes": {
+      "default": true,
+      "canvas": true
     }
   },
   "privileges": []
