@@ -51,14 +51,16 @@ export class Visual implements IVisual {
             .attr("class", "callback-card-root")
             .style("width", "100%")
             .style("height", "100%")
-            .style("overflow", "hidden")
+            .style("overflow", "auto")
             .style("font-family", "Segoe UI, sans-serif");
 
-        // Context menu
-        this.target.addEventListener("contextmenu", (e: MouseEvent) => {
+        // Context menu on both the container and inner root for empty space right-clicks
+        const showCtx = (e: MouseEvent) => {
             this.selectionManager.showContextMenu({}, { x: e.clientX, y: e.clientY });
             e.preventDefault();
-        });
+        };
+        this.target.addEventListener("contextmenu", showCtx);
+        (this.root.node() as HTMLElement).addEventListener("contextmenu", showCtx);
 
         // Allow deselection by registering with the selection manager
         this.selectionManager.registerOnSelectCallback(() => {});
