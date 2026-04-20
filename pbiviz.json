@@ -4,7 +4,7 @@
     "displayName": "Codex Callback Card",
     "guid": "codexCallbackCardF6E5D4C3B2A19087C6D5E4F3A2B1C0D9",
     "visualClassName": "Visual",
-    "version": "1.1.0.9",
+    "version": "1.1.0.10",
     "description": "Side-by-side metric panels comparing callback rates across time windows with headline rate, counts, and lost revenue.",
     "supportUrl": "https://nexuscodex.nexus/support"
   },

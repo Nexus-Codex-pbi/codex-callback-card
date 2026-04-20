@@ -37,6 +37,7 @@ export class Visual implements IVisual {
     private panelSelectionIds: ISelectionId[] = [];
     private panelTooltipItems: VisualTooltipDataItem[][] = [];
     private overlay: HTMLElement;
+    private rootDiv: d3.Selection<HTMLDivElement, unknown, null, undefined>;
 
     constructor(options: VisualConstructorOptions) {
         this.host = options.host;
@@ -51,7 +52,7 @@ export class Visual implements IVisual {
         this.localizationManager = this.host.createLocalizationManager();
         this.formattingSettingsService = new FormattingSettingsService();
 
-        this.root = d3.select(options.element)
+        this.rootDiv = d3.select(options.element)
             .append("div")
             .attr("class", "callback-card-root")
             .style("width", "100%")
@@ -72,12 +73,12 @@ export class Visual implements IVisual {
         this.overlay.style.pointerEvents = "auto";
         this.overlay.style.zIndex = "1";
 
-        // Context menu. Listener on overlay (empty space) + root (content area).
+        // Context menu. Listener on overlay (empty space) + rootDiv (content area).
         this.overlay.addEventListener("contextmenu", (e: MouseEvent) => {
             this.selectionManager.showContextMenu({}, { x: e.clientX, y: e.clientY });
             e.preventDefault();
         });
-        (this.root.node() as HTMLElement).addEventListener("contextmenu", (e: MouseEvent) => {
+        (this.rootDiv.node() as HTMLElement).addEventListener("contextmenu", (e: MouseEvent) => {
             this.selectionManager.showContextMenu({}, { x: e.clientX, y: e.clientY });
             e.preventDefault();
         });
@@ -101,7 +102,7 @@ export class Visual implements IVisual {
 
             const dv: DataView = options.dataViews?.[0];
             if (!dv) {
-                this.root.selectAll("*").remove();
+                this.rootDiv.selectAll("*").remove();
                 this.events.renderingFinished(options);
                 return;
             }
@@ -111,7 +112,7 @@ export class Visual implements IVisual {
 
             const data = parseDataView(dv);
             if (!data || data.panels.length === 0) {
-                this.root.selectAll("*").remove();
+                this.rootDiv.selectAll("*").remove();
                 this.panelSelectionIds = [];
                 this.panelTooltipItems = [];
                 this.events.renderingFinished(options);
@@ -186,7 +187,7 @@ export class Visual implements IVisual {
         // each panel) instead. This eliminates an empty outer strip between
         // the container's border and the first/last panel, which PBI's
         // selection-chrome overlay seems to absorb events on.
-        const container = this.root.append("div")
+        const container = this.rootDiv.append("div")
             .style("display", "flex")
             .style("flex-direction", isHorizontal ? "row" : "column")
             .style("gap", `${panelGap}px`)
@@ -330,8 +331,8 @@ export class Visual implements IVisual {
     }
 
     public destroy(): void {
-        this.root?.selectAll("*").remove();
-        this.root = null;
+        this.rootDiv?.selectAll("*").remove();
+        this.rootDiv = null;
         this.target = null;
     }
 }
