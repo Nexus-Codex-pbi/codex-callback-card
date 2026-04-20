@@ -36,10 +36,15 @@ export class Visual implements IVisual {
     // State for tooltips and cross-filtering
     private panelSelectionIds: ISelectionId[] = [];
     private panelTooltipItems: VisualTooltipDataItem[][] = [];
+    private overlay: HTMLElement;
 
     constructor(options: VisualConstructorOptions) {
         this.host = options.host;
         this.target = options.element;
+        this.target.style.margin = "0";
+        this.target.style.padding = "0";
+        this.target.style.overflow = "hidden";
+        this.target.style.display = "block";
         this.events = options.host.eventService;
         this.selectionManager = this.host.createSelectionManager();
         this.tooltipService = options.host.tooltipService;
@@ -52,15 +57,30 @@ export class Visual implements IVisual {
             .style("width", "100%")
             .style("height", "100%")
             .style("overflow", "auto")
-            .style("font-family", "Segoe UI, sans-serif");
+            .style("font-family", "Segoe UI, sans-serif")
+            .style("position", "relative");
 
-        // Context menu on both the container and inner root for empty space right-clicks
-        const showCtx = (e: MouseEvent) => {
+        // Full-size invisible overlay catches contextmenu in any empty
+        // space above/below/around content (title gap, subtitle space)
+        // — Policy 1180.2.5. Content renders on top since appended after.
+        this.overlay = this.target.appendChild(document.createElement("div"));
+        this.overlay.style.position = "absolute";
+        this.overlay.style.top = "0";
+        this.overlay.style.left = "0";
+        this.overlay.style.width = "100%";
+        this.overlay.style.height = "100%";
+        this.overlay.style.pointerEvents = "auto";
+        this.overlay.style.zIndex = "1";
+
+        // Context menu. Listener on overlay (empty space) + root (content area).
+        this.overlay.addEventListener("contextmenu", (e: MouseEvent) => {
             this.selectionManager.showContextMenu({}, { x: e.clientX, y: e.clientY });
             e.preventDefault();
-        };
-        this.target.addEventListener("contextmenu", showCtx);
-        (this.root.node() as HTMLElement).addEventListener("contextmenu", showCtx);
+        });
+        (this.root.node() as HTMLElement).addEventListener("contextmenu", (e: MouseEvent) => {
+            this.selectionManager.showContextMenu({}, { x: e.clientX, y: e.clientY });
+            e.preventDefault();
+        });
 
         // Allow deselection by registering with the selection manager
         this.selectionManager.registerOnSelectCallback(() => {});
@@ -161,15 +181,18 @@ export class Visual implements IVisual {
 
         const panelCount = data.panels.length;
 
-        // Container flexbox
+        // Container flexbox. Outer padding removed so panels fill the visual
+        // edge-to-edge; any breathing room comes from panelPadding (inside
+        // each panel) instead. This eliminates an empty outer strip between
+        // the container's border and the first/last panel, which PBI's
+        // selection-chrome overlay seems to absorb events on.
         const container = this.root.append("div")
             .style("display", "flex")
             .style("flex-direction", isHorizontal ? "row" : "column")
             .style("gap", `${panelGap}px`)
             .style("width", "100%")
             .style("height", "100%")
-            .style("box-sizing", "border-box")
-            .style("padding", "4px");
+            .style("box-sizing", "border-box");
 
         data.panels.forEach((panel: CallbackPanel, i: number) => {
             const panelDiv = container.append("div")
@@ -208,6 +231,13 @@ export class Visual implements IVisual {
                     this.selectionManager.select(this.panelSelectionIds[i], e.ctrlKey || e.metaKey);
                 }
                 e.stopPropagation();
+            });
+
+            // Context menu on each panel directly — covers clicks in the
+            // panel's internal padding region (Policy 1180.2.5).
+            panelNode.addEventListener("contextmenu", (e: MouseEvent) => {
+                this.selectionManager.showContextMenu({}, { x: e.clientX, y: e.clientY });
+                e.preventDefault();
             });
 
             // Headline value
