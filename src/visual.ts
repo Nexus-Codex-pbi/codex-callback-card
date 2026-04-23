@@ -22,7 +22,6 @@ import * as d3 from "d3";
 export class Visual implements IVisual {
     private host: IVisualHost;
     private target: HTMLElement;
-    private root: d3.Selection<HTMLDivElement, unknown, null, undefined>;
     private formattingSettings: VisualFormattingSettingsModel;
     private formattingSettingsService: FormattingSettingsService;
     private events: IVisualEventService;
@@ -161,7 +160,7 @@ export class Visual implements IVisual {
     }
 
     private render(data: CallbackData, width: number, height: number): void {
-        this.root.selectAll("*").remove();
+        this.rootDiv.selectAll("*").remove();
 
         const s = this.formattingSettings.callbackCardCard;
         const isHorizontal = (s.layout.value as any)?.value !== "vertical";
