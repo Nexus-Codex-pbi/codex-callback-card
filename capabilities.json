@@ -66,6 +66,20 @@
     }
   ],
   "objects": {
+    "titleSettings": {
+      "displayName": "Visual Title",
+      "properties": {
+        "showTitle": { "displayName": "Show Title", "type": { "bool": true } },
+        "titleText": { "displayName": "Title Text", "type": { "text": true } },
+        "titleFontFamily": { "displayName": "Font Family", "type": { "formatting": { "fontFamily": true } } },
+        "titleFontSize": { "displayName": "Font Size", "type": { "formatting": { "fontSize": true } } },
+        "titleBold": { "displayName": "Bold", "type": { "bool": true } },
+        "titleItalic": { "displayName": "Italic", "type": { "bool": true } },
+        "titleUnderline": { "displayName": "Underline", "type": { "bool": true } },
+        "titleAlign": { "displayName": "Alignment", "type": { "formatting": { "alignment": true } } },
+        "titleColor": { "displayName": "Font Color", "type": { "fill": { "solid": { "color": true } } } }
+      }
+    },
     "callbackCardStyle": {
       "properties": {
         "panelBackground": {

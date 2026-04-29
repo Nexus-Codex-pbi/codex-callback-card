@@ -35,7 +35,6 @@ export class Visual implements IVisual {
     // State for tooltips and cross-filtering
     private panelSelectionIds: ISelectionId[] = [];
     private panelTooltipItems: VisualTooltipDataItem[][] = [];
-    private overlay: HTMLElement;
     private rootDiv: d3.Selection<HTMLDivElement, unknown, null, undefined>;
 
     constructor(options: VisualConstructorOptions) {
@@ -51,6 +50,14 @@ export class Visual implements IVisual {
         this.localizationManager = this.host.createLocalizationManager();
         this.formattingSettingsService = new FormattingSettingsService();
 
+        // Context menu on the target — Policy 1180.2.5.
+        // Matches Microsoft sample BarChart pattern: one listener on the root
+        // element, fires for every right-click anywhere in the visual's bounds.
+        this.target.addEventListener("contextmenu", (e: MouseEvent) => {
+            this.selectionManager.showContextMenu({}, { x: e.clientX, y: e.clientY });
+            e.preventDefault();
+        });
+
         this.rootDiv = d3.select(options.element)
             .append("div")
             .attr("class", "callback-card-root")
@@ -58,29 +65,9 @@ export class Visual implements IVisual {
             .style("height", "100%")
             .style("overflow", "auto")
             .style("font-family", "Segoe UI, sans-serif")
-            .style("position", "relative");
-
-        // Full-size invisible overlay catches contextmenu in any empty
-        // space above/below/around content (title gap, subtitle space)
-        // — Policy 1180.2.5. Content renders on top since appended after.
-        this.overlay = this.target.appendChild(document.createElement("div"));
-        this.overlay.style.position = "absolute";
-        this.overlay.style.top = "0";
-        this.overlay.style.left = "0";
-        this.overlay.style.width = "100%";
-        this.overlay.style.height = "100%";
-        this.overlay.style.pointerEvents = "auto";
-        this.overlay.style.zIndex = "1";
-
-        // Context menu. Listener on overlay (empty space) + rootDiv (content area).
-        this.overlay.addEventListener("contextmenu", (e: MouseEvent) => {
-            this.selectionManager.showContextMenu({}, { x: e.clientX, y: e.clientY });
-            e.preventDefault();
-        });
-        (this.rootDiv.node() as HTMLElement).addEventListener("contextmenu", (e: MouseEvent) => {
-            this.selectionManager.showContextMenu({}, { x: e.clientX, y: e.clientY });
-            e.preventDefault();
-        });
+            .style("position", "relative")
+            .style("display", "flex")
+            .style("flex-direction", "column");
 
         // Allow deselection by registering with the selection manager
         this.selectionManager.registerOnSelectCallback(() => {});
@@ -101,7 +88,7 @@ export class Visual implements IVisual {
 
             const dv: DataView = options.dataViews?.[0];
             if (!dv) {
-                this.rootDiv.selectAll("*").remove();
+                this.renderEmpty();
                 this.events.renderingFinished(options);
                 return;
             }
@@ -111,9 +98,9 @@ export class Visual implements IVisual {
 
             const data = parseDataView(dv);
             if (!data || data.panels.length === 0) {
-                this.rootDiv.selectAll("*").remove();
                 this.panelSelectionIds = [];
                 this.panelTooltipItems = [];
+                this.renderEmpty();
                 this.events.renderingFinished(options);
                 return;
             }
@@ -162,6 +149,26 @@ export class Visual implements IVisual {
     private render(data: CallbackData, width: number, height: number): void {
         this.rootDiv.selectAll("*").remove();
 
+        // Internal title (rendered inside iframe so right-click on it satisfies
+        // Policy 1180.2.5 — same approach as Heatmap Matrix).
+        const t = this.formattingSettings.titleSettings;
+        if (t?.showTitle?.value && t?.titleText?.value) {
+            const titleEl = document.createElement("div");
+            titleEl.className = "callback-card-title";
+            titleEl.textContent = t.titleText.value;
+            if (t.titleFontFamily?.value) titleEl.style.fontFamily = t.titleFontFamily.value;
+            if (t.titleFontSize?.value) titleEl.style.fontSize = `${t.titleFontSize.value}px`;
+            titleEl.style.fontWeight = t.titleBold?.value ? "700" : "400";
+            titleEl.style.fontStyle = t.titleItalic?.value ? "italic" : "normal";
+            titleEl.style.textDecoration = t.titleUnderline?.value ? "underline" : "none";
+            titleEl.style.textAlign = (t.titleAlign?.value as string) || "left";
+            if (t.titleColor?.value?.value) {
+                titleEl.style.color = this.isHighContrast ? this.hcForeground : t.titleColor.value.value;
+            }
+            titleEl.style.padding = "8px 12px 4px";
+            (this.rootDiv.node() as HTMLElement).appendChild(titleEl);
+        }
+
         const s = this.formattingSettings.callbackCardCard;
         const isHorizontal = (s.layout.value as any)?.value !== "vertical";
         const panelGap = s.panelGap.value;
@@ -191,7 +198,8 @@ export class Visual implements IVisual {
             .style("flex-direction", isHorizontal ? "row" : "column")
             .style("gap", `${panelGap}px`)
             .style("width", "100%")
-            .style("height", "100%")
+            .style("flex", "1 1 auto")
+            .style("min-height", "0")
             .style("box-sizing", "border-box");
 
         data.panels.forEach((panel: CallbackPanel, i: number) => {
@@ -231,13 +239,6 @@ export class Visual implements IVisual {
                     this.selectionManager.select(this.panelSelectionIds[i], e.ctrlKey || e.metaKey);
                 }
                 e.stopPropagation();
-            });
-
-            // Context menu on each panel directly — covers clicks in the
-            // panel's internal padding region (Policy 1180.2.5).
-            panelNode.addEventListener("contextmenu", (e: MouseEvent) => {
-                this.selectionManager.showContextMenu({}, { x: e.clientX, y: e.clientY });
-                e.preventDefault();
             });
 
             // Headline value
@@ -295,6 +296,30 @@ export class Visual implements IVisual {
      * Handles percentages, currency, decimals, and plain numbers.
      * Falls back to locale string if no format provided.
      */
+    private renderEmpty(): void {
+        this.rootDiv.selectAll("*").remove();
+        const color = this.isHighContrast ? this.hcForeground : "#666666";
+        const landing = this.rootDiv.append("div")
+            .style("width", "100%")
+            .style("height", "100%")
+            .style("display", "flex")
+            .style("flex-direction", "column")
+            .style("align-items", "center")
+            .style("justify-content", "center")
+            .style("padding", "16px")
+            .style("box-sizing", "border-box")
+            .style("text-align", "center")
+            .style("color", color);
+        landing.append("div")
+            .style("font-size", "14px")
+            .style("font-weight", "600")
+            .style("margin-bottom", "6px")
+            .text("Codex Callback Card");
+        landing.append("div")
+            .style("font-size", "12px")
+            .text("Add a Panel label and a Headline value measure. Optional: Metric 1/2/3, Highlight value, Sort Order.");
+    }
+
     private formatValue(n: number, format: string | null): string {
         if (!format) {
             return n.toLocaleString("en-AU");
