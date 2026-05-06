@@ -1,51 +1,30 @@
-# Accessibility Statement for optiStockCallbackCard
+# Accessibility Statement – Codex Callback Card
 
-## Keyboard Navigation
-The optiStockCallbackCard supports full keyboard navigation:
-- Each panel is focusable via the Tab key
-- Arrow keys can be used to navigate between panels when focus is within the panel container
-- Enter or Space keys activate a panel (triggering click events for cross-filtering)
-- Focus indicators are visible and meet WCAG 2.1 contrast requirements
-- The visual implements proper focus management when panels are added, removed, or filtered
+## Overview
+This document outlines the accessibility compliance of the **Codex Callback Card** Power BI custom visual.
 
-## High Contrast Mode
-The visual fully supports Windows High Contrast mode:
-- Automatically detects high contrast settings via the Power BI color palette
-- Uses system foreground and background colors for all text and UI elements
-- Ignores custom color properties when in high contrast mode
-- Ensures all interactive elements maintain sufficient contrast
-- Borders and separators adapt to system colors for clear visibility
+## 1. Keyboard Navigation
+The visual supports keyboard navigation for all interactive elements. Focus indicators are visible and follow standard browser behaviour.
 
-## Screen Reader Support
-The visual is designed for screen reader accessibility:
-- Panel elements use semantic HTML (div elements with appropriate roles implied by context)
-- Panel labels and values are presented in logical reading order
-- Tooltips provide additional context for screen readers when hovering over panels
-- Dynamic content updates are announced appropriately through ARIA live regions (implicit via standard patterns)
-- The visual structure follows a logical hierarchy: title (if present) → panel container → individual panels
+## 2. High Contrast Mode
+The visual supports Power BI high contrast themes. Text, borders, and backgrounds adapt automatically. No hard-coded colours that break accessibility.
 
-## Color Usage
-Color is used thoughtfully to ensure accessibility:
-- Color is never used as the sole means of conveying information
-- All text meets minimum WCAG 2.1 contrast ratios (4.5:1 for normal text, 3:1 for large text)
-- In high contrast mode, system colors override all custom color selections
-- The visual provides alternative ways to distinguish data (position, labels, icons where applicable)
-- Users can customize colors through the format pane, but are responsible for maintaining contrast when doing so
+## 3. Screen Reader Support
+- ARIA labels are applied to interactive elements where applicable.
+- Non-decorative icons include accessible text.
+- UI controls expose meaningful names.
 
-## Animations
-The visual minimizes motion and provides user control:
-- No automatic animations that could trigger vestibular disorders
-- Transitions are limited to user-initiated actions (hover, focus changes)
-- All animations respect the `prefers-reduced-motion` media query through system settings
-- No flashing or blinking content that could cause seizures
+## 4. Color Usage
+- The visual does not rely solely on colour to convey meaning.
+- No flashing or strobing content.
 
-## Text Scaling
-The visual supports text scaling and responsiveness:
-- Font sizes are relative and scale with container size
-- Text containers allow for vertical expansion when text increases
-- No fixed-height containers that would clip enlarged text
-- The layout adapts to increased text sizes without loss of functionality
-- Users can zoom the entire report without breaking the visual layout
+## 5. Animations
+- Animations are minimal and non-looping.
+- Respects `prefers-reduced-motion` where applicable.
+- No motion that could trigger vestibular issues.
 
-## Summary
-The optiStockCallbackCard is designed to be accessible to users with diverse abilities. It follows WCAG 2.1 guidelines and leverages Power BI's built-in accessibility features. The visual supports keyboard navigation, high contrast mode, screen readers, thoughtful color usage, reduced motion options, and text scaling. While the visual provides strong accessibility foundations, report authors should still verify color contrast when customizing colors and test keyboard navigation in their specific report contexts.
+## 6. Text Scaling
+The visual respects Power BI text scaling and browser zoom.
+
+## 7. Summary
+**Codex Callback Card** meets Microsoft's accessibility requirements and is designed to be usable by all users, including those relying on assistive technologies.
