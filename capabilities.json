@@ -45,15 +45,20 @@
   ],
   "dataViewMappings": [
     {
+      "conditions": [
+        {
+          "category": { "max": 1 },
+          "rate": { "max": 1 },
+          "callbackCount": { "max": 1 },
+          "totalCount": { "max": 1 },
+          "lostCount": { "max": 1 },
+          "lostRevenue": { "max": 1 },
+          "sortOrder": { "max": 1 }
+        }
+      ],
       "categorical": {
         "categories": {
-          "select": [
-            {
-              "for": {
-                "in": "category"
-              }
-            }
-          ],
+          "for": { "in": "category" },
           "dataReductionAlgorithm": {
             "top": {
               "count": 30000
@@ -302,7 +307,7 @@
       "displayName": "Callback Card Style"
     }
   },
-  "supportsHighlight": true,
+  "supportsHighlight": false,
   "supportsKeyboardFocus": true,
   "supportsLandingPage": true,
   "supportsEmptyDataView": true,
