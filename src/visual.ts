@@ -19,6 +19,12 @@ import { parseDataView, CallbackData, CallbackPanel } from "./dataParser";
 
 import * as d3 from "d3";
 
+import { dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
+import { ColorHelper } from "powerbi-visuals-utils-colorutils";
+import { toRgba } from "../../_shared/formatting/colorHelpers";
+
+import DataViewCategoryColumn = powerbi.DataViewCategoryColumn;
+
 export class Visual implements IVisual {
     private host: IVisualHost;
     private target: HTMLElement;
@@ -36,6 +42,10 @@ export class Visual implements IVisual {
     private panelSelectionIds: ISelectionId[] = [];
     private panelTooltipItems: VisualTooltipDataItem[][] = [];
     private rootDiv: d3.Selection<HTMLDivElement, unknown, null, undefined>;
+
+    // Conditional formatting (fx) state — Highlight value colour (TRANS-04)
+    private categoricalCategories: DataViewCategoryColumn | undefined;
+    private lostRevenueColorHelper: ColorHelper | null = null;
 
     constructor(options: VisualConstructorOptions) {
         this.host = options.host;
@@ -107,6 +117,7 @@ export class Visual implements IVisual {
 
             // Build selection IDs and tooltip data per panel
             const categories = dv.categorical?.categories?.[0];
+            this.categoricalCategories = categories;
             this.panelSelectionIds = [];
             this.panelTooltipItems = [];
             for (let i = 0; i < data.panels.length; i++) {
@@ -139,6 +150,29 @@ export class Visual implements IVisual {
                 this.panelTooltipItems.push(items);
             }
 
+            // ─── Conditional formatting (fx) wiring — Highlight Value Colour
+            // (TRANS-04). A bare `instanceKind: ConstantOrRule` declaration in
+            // settings.ts does not make the fx button functional on its own
+            // (Pitfall 5) — it also needs a `selector` (dataViewWildcard, so a
+            // rule can match this measure's category instances/totals) and an
+            // `altConstantSelector` bound to a concrete selectionId for the
+            // "set for all" swatch edit path. Resolved per-panel at render via
+            // ColorHelper.getColorForMeasure against each category's own
+            // per-instance object overrides (categories.objects[i]) — the
+            // correct category-scoped resolution, not a single flat value.
+            const lostRevenueSlice = this.formattingSettings.callbackCardCard.lostRevenueColor;
+            lostRevenueSlice.selector = dataViewWildcard.createDataViewWildcardSelector(
+                dataViewWildcard.DataViewWildcardMatchingOption.InstancesAndTotals
+            );
+            lostRevenueSlice.altConstantSelector = this.panelSelectionIds[0]
+                ? this.panelSelectionIds[0].getSelector()
+                : undefined;
+            this.lostRevenueColorHelper = new ColorHelper(
+                this.host.colorPalette,
+                { objectName: "callbackCardStyle", propertyName: "lostRevenueColor" },
+                lostRevenueSlice.value.value
+            );
+
             this.render(data, options.viewport.width, options.viewport.height);
             this.events.renderingFinished(options);
         } catch (e) {
@@ -148,6 +182,20 @@ export class Visual implements IVisual {
 
     private render(data: CallbackData, width: number, height: number): void {
         this.rootDiv.selectAll("*").remove();
+
+        // ─── Dedicated background layer (D-05) ─────────────────────────
+        // this.rootDiv is the visual's own content div (a child of
+        // this.target, which is where the contextmenu listener lives —
+        // see constructor lines ~53-59, UNTOUCHED). Styling rootDiv's own
+        // background-color is not a new overlay: it never sits above the
+        // contextmenu-bearing target, so it cannot swallow empty-space
+        // right-clicks (T-04-01). `?? default` on both reads means an OLD
+        // saved report (properties undefined) renders fully opaque white,
+        // the pre-existing default, per D-06.
+        const background = this.formattingSettings.background;
+        const bgHex = background.backgroundColor.value?.value ?? "#ffffff";
+        const bgTransparencyPct = background.transparency.value ?? 0;
+        this.rootDiv.style("background-color", toRgba(bgHex, bgTransparencyPct));
 
         // Internal title (rendered inside iframe so right-click on it satisfies
         // Policy 1180.2.5 — same approach as Heatmap Matrix).
@@ -178,7 +226,6 @@ export class Visual implements IVisual {
         const rateColors = this.isHighContrast
             ? [this.hcForeground, this.hcForeground]
             : [s.rateColor1.value.value, s.rateColor2.value.value];
-        const lostColor = this.isHighContrast ? this.hcForeground : s.lostRevenueColor.value.value;
         const labelColor = this.isHighContrast ? this.hcForeground : s.labelColor.value.value;
         const detailColor = this.isHighContrast ? this.hcForeground : s.detailColor.value.value;
         const rateFontSize = s.rateFontSize.value;
@@ -282,8 +329,13 @@ export class Visual implements IVisual {
                     .text(this.formatValue(panel.lostCount, panel.lostCountFormat));
 
                 if (s.showHighlightValue.value && panel.lostRevenue !== null) {
+                    const instanceObjects = this.categoricalCategories?.objects?.[i];
+                    const resolvedLostColor = this.isHighContrast
+                        ? this.hcForeground
+                        : (this.lostRevenueColorHelper?.getColorForMeasure(instanceObjects, "lostRevenue")
+                            ?? s.lostRevenueColor.value.value);
                     metricLine.append("span")
-                        .style("color", lostColor)
+                        .style("color", resolvedLostColor)
                         .style("font-weight", "600")
                         .text(` / ${this.formatValue(panel.lostRevenue, panel.lostRevenueFormat)}`);
                 }
@@ -298,6 +350,16 @@ export class Visual implements IVisual {
      */
     private renderEmpty(): void {
         this.rootDiv.selectAll("*").remove();
+
+        // Dedicated background layer (D-05) — same rootDiv as render(), so
+        // the landing/empty state also honours the Background card. Guarded
+        // for the very first update() (no dataViews at all), where
+        // formattingSettings has not yet been populated.
+        const background = this.formattingSettings?.background;
+        const bgHex = background?.backgroundColor.value?.value ?? "#ffffff";
+        const bgTransparencyPct = background?.transparency.value ?? 0;
+        this.rootDiv.style("background-color", toRgba(bgHex, bgTransparencyPct));
+
         const color = this.isHighContrast ? this.hcForeground : "#666666";
         const landing = this.rootDiv.append("div")
             .style("width", "100%")

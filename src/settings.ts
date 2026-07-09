@@ -4,6 +4,8 @@ import FormattingSettingsCard = formattingSettings.SimpleCard;
 import FormattingSettingsSlice = formattingSettings.Slice;
 import FormattingSettingsModel = formattingSettings.Model;
 
+import { BackgroundSettings } from "../../_shared/formatting/backgroundSettings";
+
 const ConstantOrRule = powerbi.VisualEnumerationInstanceKinds.ConstantOrRule;
 
 export class TitleSettings extends FormattingSettingsCard {
@@ -227,5 +229,6 @@ export class CallbackCardSettings extends FormattingSettingsCard {
 export class VisualFormattingSettingsModel extends FormattingSettingsModel {
     titleSettings = new TitleSettings();
     callbackCardCard = new CallbackCardSettings();
-    cards = [this.titleSettings, this.callbackCardCard];
+    background = new BackgroundSettings();
+    cards = [this.titleSettings, this.callbackCardCard, this.background];
 }

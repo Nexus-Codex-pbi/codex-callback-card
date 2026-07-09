@@ -47,18 +47,34 @@
     {
       "conditions": [
         {
-          "category": { "max": 1 },
-          "rate": { "max": 1 },
-          "callbackCount": { "max": 1 },
-          "totalCount": { "max": 1 },
-          "lostCount": { "max": 1 },
-          "lostRevenue": { "max": 1 },
-          "sortOrder": { "max": 1 }
+          "category": {
+            "max": 1
+          },
+          "rate": {
+            "max": 1
+          },
+          "callbackCount": {
+            "max": 1
+          },
+          "totalCount": {
+            "max": 1
+          },
+          "lostCount": {
+            "max": 1
+          },
+          "lostRevenue": {
+            "max": 1
+          },
+          "sortOrder": {
+            "max": 1
+          }
         }
       ],
       "categorical": {
         "categories": {
-          "for": { "in": "category" },
+          "for": {
+            "in": "category"
+          },
           "dataReductionAlgorithm": {
             "top": {
               "count": 30000
@@ -305,6 +321,27 @@
         }
       },
       "displayName": "Callback Card Style"
+    },
+    "background": {
+      "displayName": "Background",
+      "properties": {
+        "backgroundColor": {
+          "displayName": "Background Colour",
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "transparency": {
+          "displayName": "Transparency",
+          "type": {
+            "numeric": true
+          }
+        }
+      }
     }
   },
   "supportsHighlight": false,

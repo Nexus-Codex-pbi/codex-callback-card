@@ -34,3 +34,20 @@
 - [ ] Demonstrates all features
 - [ ] Demonstrates formatting options
 - [ ] Demonstrates interactions
+
+## 7. Background Transparency (TRANS-01/02/03/05)
+- [ ] Background card (Colour + Transparency) appears in the format pane
+- [ ] Transparency 0% renders fully opaque background over a non-white report canvas
+- [ ] Transparency 50% shows true partial transparency (canvas colour blends through) over a non-white canvas
+- [ ] Transparency 100% shows fully transparent background (canvas colour shows through completely)
+- [ ] Old saved report (no background properties set) renders pixel-identical opaque white — D-06 regression check
+- [ ] Light theme and dark theme both render correctly with transparency applied
+
+## 8. Conditional Formatting / fx (TRANS-04)
+- [ ] fx button appears next to Highlight Value Colour swatch in the format pane
+- [ ] Binding a measure to a conditional formatting rule on Highlight Value Colour changes colour per panel/category
+- [ ] Panels without a rule fall back to the static Highlight Value Colour swatch value
+
+## 9. Context Menu Regression (CERT-01 — T-04-01)
+- [ ] Right-click on empty space within the visual (not on a panel) still opens the Power BI context menu after the background transparency change
+- [ ] Right-click directly on a panel still opens the context menu (existing contextmenu listener on `this.target`, unchanged by this plan)
