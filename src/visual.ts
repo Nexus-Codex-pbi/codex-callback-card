@@ -14,7 +14,7 @@ import ILocalizationManager = powerbi.extensibility.ILocalizationManager;
 import DataView = powerbi.DataView;
 
 import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
-import { VisualFormattingSettingsModel, CallbackCardSettings } from "./settings";
+import { VisualFormattingSettingsModel, CallbackCardSettings, alignSelfFor, textAlignFor } from "./settings";
 import { parseDataView, CallbackData, CallbackPanel } from "./dataParser";
 
 import * as d3 from "d3";
@@ -46,6 +46,12 @@ export class Visual implements IVisual {
     // Conditional formatting (fx) state — Highlight value colour (TRANS-04)
     private categoricalCategories: DataViewCategoryColumn | undefined;
     private lostRevenueColorHelper: ColorHelper | null = null;
+
+    // Conditional formatting (fx) state — Headline (rate) colour, panel 0
+    // only (TEXT-02: "primary value text colour"). Panel 1+ keep the static
+    // rateColor2 alternation untouched (D-06 — no change to existing
+    // multi-panel colour-alternation behaviour).
+    private rateColorHelper: ColorHelper | null = null;
 
     constructor(options: VisualConstructorOptions) {
         this.host = options.host;
@@ -173,6 +179,24 @@ export class Visual implements IVisual {
                 lostRevenueSlice.value.value
             );
 
+            // ─── Conditional formatting (fx) wiring — Headline Colour
+            // (TEXT-02). Same wildcard-selector + altConstantSelector +
+            // ColorHelper.getColorForMeasure pattern as Highlight Value
+            // Colour above, targeting the "rate" measure role so a fx rule
+            // resolves against the bound Headline value field.
+            const rateColorSlice = this.formattingSettings.callbackCardCard.rateColor1;
+            rateColorSlice.selector = dataViewWildcard.createDataViewWildcardSelector(
+                dataViewWildcard.DataViewWildcardMatchingOption.InstancesAndTotals
+            );
+            rateColorSlice.altConstantSelector = this.panelSelectionIds[0]
+                ? this.panelSelectionIds[0].getSelector()
+                : undefined;
+            this.rateColorHelper = new ColorHelper(
+                this.host.colorPalette,
+                { objectName: "callbackCardStyle", propertyName: "rateColor1" },
+                rateColorSlice.value.value
+            );
+
             this.render(data, options.viewport.width, options.viewport.height);
             this.events.renderingFinished(options);
         } catch (e) {
@@ -201,9 +225,11 @@ export class Visual implements IVisual {
         this.rootDiv.style("background-color", toRgba(bgHex, bgTransparencyPct));
 
         // Internal title (rendered inside iframe so right-click on it satisfies
-        // Policy 1180.2.5 — same approach as Heatmap Matrix).
+        // Policy 1180.2.5 — same approach as Heatmap Matrix). Now sourced from
+        // the shared _shared/formatting/titleSettings.ts card (D-13/D-14).
         const t = this.formattingSettings.titleSettings;
         if (t?.showTitle?.value && t?.titleText?.value) {
+            const titleAlignVal = String((t as any).titleAlign?.value || "left");
             const titleEl = document.createElement("div");
             titleEl.className = "callback-card-title";
             titleEl.textContent = t.titleText.value;
@@ -212,7 +238,8 @@ export class Visual implements IVisual {
             titleEl.style.fontWeight = t.titleBold?.value ? "700" : "400";
             titleEl.style.fontStyle = t.titleItalic?.value ? "italic" : "normal";
             titleEl.style.textDecoration = t.titleUnderline?.value ? "underline" : "none";
-            titleEl.style.textAlign = (t.titleAlign?.value as string) || "left";
+            titleEl.style.alignSelf = alignSelfFor(titleAlignVal);
+            titleEl.style.textAlign = textAlignFor(titleAlignVal);
             if (t.titleColor?.value?.value) {
                 titleEl.style.color = this.isHighContrast ? this.hcForeground : t.titleColor.value.value;
             }
@@ -235,6 +262,36 @@ export class Visual implements IVisual {
         const labelFontSize = s.labelFontSize.value;
         const detailFontSize = s.detailFontSize.value;
         // Formatting now comes from each measure's PBI format string
+
+        // ─── Text treatment (font family/weight/style/decoration/alignment,
+        // TEXT-01/TEXT-02/TITLE-01) — each `?? default` fallback reproduces
+        // this visual's PRE-EXISTING hardcoded style exactly when an old
+        // saved report has none of these new properties set (D-06):
+        //   rate: was hardcoded font-weight 700   -> rateBold defaults true
+        //   label: was hardcoded font-weight 500  -> labelBold defaults true
+        //   detail: no font-weight set (normal)   -> detailBold defaults false
+        // "Bold" renders 700; "not bold" renders each surface's own
+        // pre-existing rest-weight (see weightFor below) rather than a flat
+        // 400, so the default (off) state is pixel-identical to before.
+        const weightFor = (bold: boolean | undefined, restWeight: string): string => bold ? "700" : restWeight;
+
+        const rateFontFamily = s.rateFontFamily.value || "Segoe UI, sans-serif";
+        const rateWeight = weightFor(s.rateBold.value, "700");
+        const rateStyle = s.rateItalic.value ? "italic" : "normal";
+        const rateDecoration = s.rateUnderline.value ? "underline" : "none";
+        const rateAlignVal = String((s as any).rateAlign?.value || "center");
+
+        const labelFontFamily = s.labelFontFamily.value || "Segoe UI, sans-serif";
+        const labelWeight = weightFor(s.labelBold.value, "500");
+        const labelStyle = s.labelItalic.value ? "italic" : "normal";
+        const labelDecoration = s.labelUnderline.value ? "underline" : "none";
+        const labelAlignVal = String((s as any).labelAlign?.value || "center");
+
+        const detailFontFamily = s.detailFontFamily.value || "Segoe UI, sans-serif";
+        const detailWeight = weightFor(s.detailBold.value, "400");
+        const detailStyle = s.detailItalic.value ? "italic" : "normal";
+        const detailDecoration = s.detailUnderline.value ? "underline" : "none";
+        const detailAlignVal = String((s as any).detailAlign?.value || "center");
 
         const panelCount = data.panels.length;
 
@@ -291,22 +348,39 @@ export class Visual implements IVisual {
                 e.stopPropagation();
             });
 
-            // Headline value
+            // Headline value — fx wired on panel 0 only (rateColor1, TEXT-02);
+            // panel 1+ keeps the existing static rateColor2 alternation.
             if (panel.rate !== null) {
+                const instanceObjects = this.categoricalCategories?.objects?.[i];
+                const resolvedRateColor = this.isHighContrast
+                    ? this.hcForeground
+                    : (i === 0
+                        ? (this.rateColorHelper?.getColorForMeasure(instanceObjects, "rate") ?? rateColors[0])
+                        : rateColors[i % rateColors.length]);
                 panelDiv.append("div")
                     .style("font-size", `${rateFontSize}px`)
-                    .style("font-weight", "700")
-                    .style("color", rateColors[i % rateColors.length])
+                    .style("font-family", rateFontFamily)
+                    .style("font-weight", rateWeight)
+                    .style("font-style", rateStyle)
+                    .style("text-decoration", rateDecoration)
+                    .style("color", resolvedRateColor)
                     .style("line-height", "1.1")
+                    .style("align-self", alignSelfFor(rateAlignVal))
+                    .style("text-align", textAlignFor(rateAlignVal))
                     .text(this.formatValue(panel.rate, panel.rateFormat));
             }
 
             // Panel label
             panelDiv.append("div")
                 .style("font-size", `${labelFontSize}px`)
+                .style("font-family", labelFontFamily)
                 .style("color", labelColor)
                 .style("margin-top", "4px")
-                .style("font-weight", "500")
+                .style("font-weight", labelWeight)
+                .style("font-style", labelStyle)
+                .style("text-decoration", labelDecoration)
+                .style("align-self", alignSelfFor(labelAlignVal))
+                .style("text-align", textAlignFor(labelAlignVal))
                 .text(panel.window);
 
             // Metric 1 / Metric 2
@@ -316,8 +390,14 @@ export class Visual implements IVisual {
                     : "";
                 panelDiv.append("div")
                     .style("font-size", `${detailFontSize}px`)
+                    .style("font-family", detailFontFamily)
                     .style("color", detailColor)
                     .style("margin-top", "8px")
+                    .style("font-weight", detailWeight)
+                    .style("font-style", detailStyle)
+                    .style("text-decoration", detailDecoration)
+                    .style("align-self", alignSelfFor(detailAlignVal))
+                    .style("text-align", textAlignFor(detailAlignVal))
                     .text(`${this.formatValue(panel.callbackCount, panel.callbackCountFormat)}${metric2Str}`);
             }
 
@@ -325,7 +405,13 @@ export class Visual implements IVisual {
             if (s.showMetric3.value && panel.lostCount !== null) {
                 const metricLine = panelDiv.append("div")
                     .style("font-size", `${detailFontSize}px`)
-                    .style("margin-top", "4px");
+                    .style("font-family", detailFontFamily)
+                    .style("font-weight", detailWeight)
+                    .style("font-style", detailStyle)
+                    .style("text-decoration", detailDecoration)
+                    .style("margin-top", "4px")
+                    .style("align-self", alignSelfFor(detailAlignVal))
+                    .style("text-align", textAlignFor(detailAlignVal));
 
                 metricLine.append("span")
                     .style("color", detailColor)

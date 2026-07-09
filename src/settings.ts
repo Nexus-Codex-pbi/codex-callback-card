@@ -5,88 +5,16 @@ import FormattingSettingsSlice = formattingSettings.Slice;
 import FormattingSettingsModel = formattingSettings.Model;
 
 import { BackgroundSettings } from "../../_shared/formatting/backgroundSettings";
+import { TitleSettings } from "../../_shared/formatting/titleSettings";
+import { alignSlice, alignSelfFor, textAlignFor, makeFontControl } from "../../_shared/formatting/textFormatting";
 
 const ConstantOrRule = powerbi.VisualEnumerationInstanceKinds.ConstantOrRule;
 
-export class TitleSettings extends FormattingSettingsCard {
-    name = "titleSettings";
-    displayName = "Visual Title";
-
-    showTitle = new formattingSettings.ToggleSwitch({
-        name: "showTitle",
-        displayName: "Show Title",
-        value: false
-    });
-
-    titleText = new formattingSettings.TextInput({
-        name: "titleText",
-        displayName: "Title Text",
-        placeholder: "Visual title",
-        value: ""
-    });
-
-    titleFontFamily = new formattingSettings.FontPicker({
-        name: "titleFontFamily",
-        displayName: "Font Family",
-        value: "Segoe UI, sans-serif"
-    });
-
-    titleFontSize = new formattingSettings.NumUpDown({
-        name: "titleFontSize",
-        displayName: "Font Size",
-        value: 14
-    });
-
-    titleBold = new formattingSettings.ToggleSwitch({
-        name: "titleBold",
-        displayName: "Bold",
-        value: true
-    });
-
-    titleItalic = new formattingSettings.ToggleSwitch({
-        name: "titleItalic",
-        displayName: "Italic",
-        value: false
-    });
-
-    titleUnderline = new formattingSettings.ToggleSwitch({
-        name: "titleUnderline",
-        displayName: "Underline",
-        value: false
-    });
-
-    titleFont = new formattingSettings.FontControl({
-        name: "titleFont",
-        displayName: "Font",
-        fontFamily: this.titleFontFamily,
-        fontSize: this.titleFontSize,
-        bold: this.titleBold,
-        italic: this.titleItalic,
-        underline: this.titleUnderline
-    });
-
-    titleAlign = new formattingSettings.AlignmentGroup({
-        name: "titleAlign",
-        displayName: "Alignment",
-        mode: powerbi.visuals.AlignmentGroupMode.Horizonal,
-        value: "left"
-    });
-
-    titleColor = new formattingSettings.ColorPicker({
-        name: "titleColor",
-        displayName: "Font Color",
-        value: { value: "#1a1a2e" },
-        instanceKind: ConstantOrRule
-    });
-
-    slices: FormattingSettingsSlice[] = [
-        this.showTitle,
-        this.titleText,
-        this.titleFont,
-        this.titleAlign,
-        this.titleColor
-    ];
-}
+// TitleSettings + alignment helpers now live in _shared/formatting/ (D-13,
+// D-14 — migrated onto the frozen v2 standard from Plan 10). Re-exported so
+// visual.ts can import them from "./settings" (stable import path, zero
+// churn on the consuming side).
+export { TitleSettings, alignSlice, alignSelfFor, textAlignFor };
 
 export class CallbackCardSettings extends FormattingSettingsCard {
     name = "callbackCardStyle";
@@ -117,11 +45,19 @@ export class CallbackCardSettings extends FormattingSettingsCard {
         value: 12,
     });
 
-    rateFontSize = new formattingSettings.NumUpDown({
-        name: "rateFontSize",
-        displayName: "Headline font size",
-        value: 28,
-    });
+    // Headline (rate) text — FontControl composite reuses the existing
+    // "rateFontSize" property name (D-06/D-07: additive-only, no schema
+    // rename) alongside NEW sibling properties (family/bold/italic/
+    // underline). Bold defaults true to match the previously-hardcoded
+    // font-weight:700 on the headline div (render-nothing-default parity).
+    private rateFontBundle = makeFontControl("rate", { fontSize: 28, bold: true });
+    rateFontFamily = this.rateFontBundle.fontFamily;
+    rateFontSize = this.rateFontBundle.fontSize;
+    rateBold = this.rateFontBundle.bold;
+    rateItalic = this.rateFontBundle.italic;
+    rateUnderline = this.rateFontBundle.underline;
+    rateFont = this.rateFontBundle.control;
+    rateAlign = alignSlice("rateAlign", "center");
 
     rateFormatString = new formattingSettings.TextInput({
         name: "rateFormatString",
@@ -144,17 +80,27 @@ export class CallbackCardSettings extends FormattingSettingsCard {
         instanceKind: ConstantOrRule
     });
 
-    labelFontSize = new formattingSettings.NumUpDown({
-        name: "labelFontSize",
-        displayName: "Label font size",
-        value: 11,
-    });
+    // Panel label text — reuses "labelFontSize"; bold defaults true (closest
+    // boolean match to the previously-hardcoded font-weight:500).
+    private labelFontBundle = makeFontControl("label", { fontSize: 11, bold: true });
+    labelFontFamily = this.labelFontBundle.fontFamily;
+    labelFontSize = this.labelFontBundle.fontSize;
+    labelBold = this.labelFontBundle.bold;
+    labelItalic = this.labelFontBundle.italic;
+    labelUnderline = this.labelFontBundle.underline;
+    labelFont = this.labelFontBundle.control;
+    labelAlign = alignSlice("labelAlign", "center");
 
-    detailFontSize = new formattingSettings.NumUpDown({
-        name: "detailFontSize",
-        displayName: "Detail font size",
-        value: 10,
-    });
+    // Metric 1/2/3 detail text — reuses "detailFontSize"; bold defaults
+    // false (matches the previously-unset, browser-normal font weight).
+    private detailFontBundle = makeFontControl("detail", { fontSize: 10, bold: false });
+    detailFontFamily = this.detailFontBundle.fontFamily;
+    detailFontSize = this.detailFontBundle.fontSize;
+    detailBold = this.detailFontBundle.bold;
+    detailItalic = this.detailFontBundle.italic;
+    detailUnderline = this.detailFontBundle.underline;
+    detailFont = this.detailFontBundle.control;
+    detailAlign = alignSlice("detailAlign", "center");
 
     lostRevenueColor = new formattingSettings.ColorPicker({
         name: "lostRevenueColor",
@@ -210,12 +156,15 @@ export class CallbackCardSettings extends FormattingSettingsCard {
         this.panelRadius,
         this.panelPadding,
         this.panelGap,
-        this.rateFontSize,
+        this.rateFont,
+        this.rateAlign,
         this.rateFormatString,
         this.rateColor1,
         this.rateColor2,
-        this.labelFontSize,
-        this.detailFontSize,
+        this.labelFont,
+        this.labelAlign,
+        this.detailFont,
+        this.detailAlign,
         this.lostRevenueColor,
         this.showMetric1,
         this.showMetric3,

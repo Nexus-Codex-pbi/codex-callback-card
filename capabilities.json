@@ -224,6 +224,40 @@
           },
           "displayName": "Rate Font Size"
         },
+        "rateFontFamily": {
+          "type": {
+            "formatting": {
+              "fontFamily": true
+            }
+          },
+          "displayName": "Rate Font Family"
+        },
+        "rateBold": {
+          "type": {
+            "bool": true
+          },
+          "displayName": "Rate Bold"
+        },
+        "rateItalic": {
+          "type": {
+            "bool": true
+          },
+          "displayName": "Rate Italic"
+        },
+        "rateUnderline": {
+          "type": {
+            "bool": true
+          },
+          "displayName": "Rate Underline"
+        },
+        "rateAlign": {
+          "type": {
+            "formatting": {
+              "alignment": true
+            }
+          },
+          "displayName": "Rate Alignment"
+        },
         "rateColor1": {
           "type": {
             "fill": {
@@ -250,11 +284,79 @@
           },
           "displayName": "Label Font Size"
         },
+        "labelFontFamily": {
+          "type": {
+            "formatting": {
+              "fontFamily": true
+            }
+          },
+          "displayName": "Label Font Family"
+        },
+        "labelBold": {
+          "type": {
+            "bool": true
+          },
+          "displayName": "Label Bold"
+        },
+        "labelItalic": {
+          "type": {
+            "bool": true
+          },
+          "displayName": "Label Italic"
+        },
+        "labelUnderline": {
+          "type": {
+            "bool": true
+          },
+          "displayName": "Label Underline"
+        },
+        "labelAlign": {
+          "type": {
+            "formatting": {
+              "alignment": true
+            }
+          },
+          "displayName": "Label Alignment"
+        },
         "detailFontSize": {
           "type": {
             "numeric": true
           },
           "displayName": "Detail Font Size"
+        },
+        "detailFontFamily": {
+          "type": {
+            "formatting": {
+              "fontFamily": true
+            }
+          },
+          "displayName": "Detail Font Family"
+        },
+        "detailBold": {
+          "type": {
+            "bool": true
+          },
+          "displayName": "Detail Bold"
+        },
+        "detailItalic": {
+          "type": {
+            "bool": true
+          },
+          "displayName": "Detail Italic"
+        },
+        "detailUnderline": {
+          "type": {
+            "bool": true
+          },
+          "displayName": "Detail Underline"
+        },
+        "detailAlign": {
+          "type": {
+            "formatting": {
+              "alignment": true
+            }
+          },
+          "displayName": "Detail Alignment"
         },
         "lostRevenueColor": {
           "type": {
