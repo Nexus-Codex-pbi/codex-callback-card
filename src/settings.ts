@@ -230,5 +230,21 @@ export class VisualFormattingSettingsModel extends FormattingSettingsModel {
     titleSettings = new TitleSettings();
     callbackCardCard = new CallbackCardSettings();
     background = new BackgroundSettings();
+
+    constructor() {
+        super();
+        // D-06 default-preservation override (per-visual instance only —
+        // _shared/formatting/backgroundSettings.ts itself is untouched,
+        // D-11): this visual's rootDiv never had an explicit background
+        // painted before this plan (no CSS rule, no JS style set) — it was
+        // fully transparent, showing whatever sits behind the visual tile.
+        // The frozen shared card's own default (opaque white, transparency
+        // 0) would regress every old saved report on a non-default report
+        // canvas colour/image. Overriding the TRANSPARENCY default to 100
+        // on this instance makes toRgba(...) resolve to alpha 0 regardless
+        // of colour — pixel-identical to "no background painted" (D-06).
+        this.background.transparency.value = 100;
+    }
+
     cards = [this.titleSettings, this.callbackCardCard, this.background];
 }

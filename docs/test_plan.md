@@ -40,7 +40,7 @@
 - [ ] Transparency 0% renders fully opaque background over a non-white report canvas
 - [ ] Transparency 50% shows true partial transparency (canvas colour blends through) over a non-white canvas
 - [ ] Transparency 100% shows fully transparent background (canvas colour shows through completely)
-- [ ] Old saved report (no background properties set) renders pixel-identical opaque white — D-06 regression check
+- [ ] Old saved report (no background properties set) renders pixel-identical to pre-upgrade — no background painted on the root container (transparency defaults to 100 on this visual specifically since rootDiv was never painted before this plan, D-06)
 - [ ] Light theme and dark theme both render correctly with transparency applied
 
 ## 8. Conditional Formatting / fx (TRANS-04)

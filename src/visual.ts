@@ -189,12 +189,15 @@ export class Visual implements IVisual {
         // see constructor lines ~53-59, UNTOUCHED). Styling rootDiv's own
         // background-color is not a new overlay: it never sits above the
         // contextmenu-bearing target, so it cannot swallow empty-space
-        // right-clicks (T-04-01). `?? default` on both reads means an OLD
-        // saved report (properties undefined) renders fully opaque white,
-        // the pre-existing default, per D-06.
+        // right-clicks (T-04-01). `?? default` on both reads, with the
+        // transparency default overridden to 100 in settings.ts (this
+        // visual's rootDiv was never painted before this plan — fully
+        // transparent), means an OLD saved report (properties undefined)
+        // renders alpha 0 — pixel-identical to "no background painted",
+        // per D-06.
         const background = this.formattingSettings.background;
         const bgHex = background.backgroundColor.value?.value ?? "#ffffff";
-        const bgTransparencyPct = background.transparency.value ?? 0;
+        const bgTransparencyPct = background.transparency.value ?? 100;
         this.rootDiv.style("background-color", toRgba(bgHex, bgTransparencyPct));
 
         // Internal title (rendered inside iframe so right-click on it satisfies
@@ -357,7 +360,7 @@ export class Visual implements IVisual {
         // formattingSettings has not yet been populated.
         const background = this.formattingSettings?.background;
         const bgHex = background?.backgroundColor.value?.value ?? "#ffffff";
-        const bgTransparencyPct = background?.transparency.value ?? 0;
+        const bgTransparencyPct = background?.transparency.value ?? 100;
         this.rootDiv.style("background-color", toRgba(bgHex, bgTransparencyPct));
 
         const color = this.isHighContrast ? this.hcForeground : "#666666";
