@@ -502,5 +502,6 @@
             "canvas": true
         }
     },
-    "privileges": []
+    "privileges": [],
+    "suppressDefaultTitle": true
 }
