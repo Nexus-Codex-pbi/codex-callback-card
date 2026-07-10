@@ -57,7 +57,11 @@ export class CallbackCardSettings extends FormattingSettingsCard {
     rateItalic = this.rateFontBundle.italic;
     rateUnderline = this.rateFontBundle.underline;
     rateFont = this.rateFontBundle.control;
-    rateAlign = alignSlice("rateAlign", "center");
+    // v2 look (01-16, D-16): alignment DEFAULTS moved center -> left to ship
+    // the board's left-rail reading order; a user-set alignment still
+    // resolves exactly as before (visual.ts falls back to "left" only when
+    // the property is unset).
+    rateAlign = alignSlice("rateAlign", "left");
 
     rateFormatString = new formattingSettings.TextInput({
         name: "rateFormatString",
@@ -89,7 +93,7 @@ export class CallbackCardSettings extends FormattingSettingsCard {
     labelItalic = this.labelFontBundle.italic;
     labelUnderline = this.labelFontBundle.underline;
     labelFont = this.labelFontBundle.control;
-    labelAlign = alignSlice("labelAlign", "center");
+    labelAlign = alignSlice("labelAlign", "left");
 
     // Metric 1/2/3 detail text — reuses "detailFontSize"; bold defaults
     // false (matches the previously-unset, browser-normal font weight).
@@ -100,7 +104,7 @@ export class CallbackCardSettings extends FormattingSettingsCard {
     detailItalic = this.detailFontBundle.italic;
     detailUnderline = this.detailFontBundle.underline;
     detailFont = this.detailFontBundle.control;
-    detailAlign = alignSlice("detailAlign", "center");
+    detailAlign = alignSlice("detailAlign", "left");
 
     lostRevenueColor = new formattingSettings.ColorPicker({
         name: "lostRevenueColor",
@@ -127,14 +131,17 @@ export class CallbackCardSettings extends FormattingSettingsCard {
         value: true,
     });
 
+    // v2 look (01-16): display names match the design board's layout terms;
+    // the PERSISTED values ("horizontal"/"vertical") and the default are
+    // unchanged, so every saved report's layout choice still resolves (D-16).
     layout = new formattingSettings.ItemDropdown({
         name: "layout",
         displayName: "Layout",
         items: [
-            { displayName: "Horizontal", value: "horizontal" },
-            { displayName: "Vertical", value: "vertical" },
+            { displayName: "Side by side", value: "horizontal" },
+            { displayName: "Vertical stack", value: "vertical" },
         ],
-        value: { displayName: "Horizontal", value: "horizontal" },
+        value: { displayName: "Side by side", value: "horizontal" },
     });
 
     labelColor = new formattingSettings.ColorPicker({

@@ -72,3 +72,19 @@
 ## 13. Context Menu Regression — Post Title/Text Change (T-11-01)
 - [ ] Right-click on empty space within the visual (not on a panel, not on the title) still opens the Power BI context menu after this plan's title/text DOM additions
 - [ ] The new title element does not sit as a pointer-events overlay over empty space (title is an in-flow rootDiv child, not an absolutely-positioned layer)
+
+## 14. v2 Board Look (LOOK-02, 01-16 — shared v3 engine)
+- [ ] Each side renders an eyebrow row (band-tinted status dot + uppercase panel label) above the headline value
+- [ ] Per-side band verdict: sides after the first are tinted by their headline's direction vs the FIRST panel (baseline) — lime (success) on increase, magenta (danger) on decrease; the sides can disagree
+- [ ] First panel (baseline) and any side without a computable delta: dot falls back to the accent (cyan) token, no delta chip renders (board degradation order)
+- [ ] Delta chip matches KPI Card v2 grammar: arrow + signed % in tabular numerals, 999px pill, band-colour text over a 15% colour-mix fill
+- [ ] Hairline divider (1px, border token) separates sides in BOTH layouts (Side by side: vertical rule; Vertical stack: horizontal rule); no drop shadow anywhere
+- [ ] Corner-bracket signature (accent-tinted, mirrored TL/BR) paints above the title panel; glow only on a dark-reading panel background, none on light
+- [ ] Headline value uses tabular numerals, line-height 0.95; value settles once (<=400ms) ONLY when its displayed text changes, and not under prefers-reduced-motion
+- [ ] High contrast: dot/chip/divider/brackets take system colours, chip swaps tinted fill for a 2px outline, and the arrow is paired with a status glyph (nothing reads by colour alone)
+
+## 15. D-16 Override Fidelity (01-16)
+- [ ] Old saved report with user-SET panel background / headline colours / label & detail colours / fonts / alignment: every value still resolves exactly as saved (explicit `??` fallback reads only fill UNSET properties)
+- [ ] Headline Colour (panel 1) fx rule still resolves per category on panel 1 under the new look
+- [ ] Layout choice persists: reports saved as Horizontal render Side by side, Vertical renders Vertical stack (persisted values unchanged; only display names updated)
+- [ ] New-look DEFAULTS (left alignment, eyebrow treatment, chip, divider, brackets) apply only where properties were never set

@@ -3,3 +3,12 @@
     height: 100%;
     overflow: auto;
 }
+
+// v2 board look (01-16): numerals align via tabular figures on the headline
+// value and the delta chip. All theme-dependent colour/glow styling is
+// DOM-built inline per render (v3 engine) — these classes carry only the
+// static, theme-independent defaults.
+.callback-v2-value,
+.callback-v2-pill {
+    font-feature-settings: "tnum";
+}
