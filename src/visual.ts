@@ -25,6 +25,7 @@ import { toRgba } from "./shared/colorHelpers";
 import { Band, Theme, accentToken, bandColor } from "./shared/bandEngine";
 import { surfaceTokens, TABULAR_NUMS } from "./shared/designTokens";
 import { makeCornerBrackets, CardSignatureHandle } from "./shared/cardSignature";
+import { resolveCardSignature } from "./shared/cardSignatureSettings";
 import { settle } from "./shared/motion";
 import { applyHighContrast, statusGlyph } from "./shared/highContrast";
 
@@ -193,9 +194,7 @@ export class Visual implements IVisual {
             lostRevenueSlice.selector = dataViewWildcard.createDataViewWildcardSelector(
                 dataViewWildcard.DataViewWildcardMatchingOption.InstancesAndTotals
             );
-            lostRevenueSlice.altConstantSelector = this.panelSelectionIds[0]
-                ? this.panelSelectionIds[0].getSelector()
-                : undefined;
+            lostRevenueSlice.altConstantSelector = undefined; // card-level constant persistence: swatch edits apply to ALL instances + round-trip into the pane (first-instance binding persisted a row-0-only override); fx rules stay per-instance via the wildcard selector;
             this.lostRevenueColorHelper = new ColorHelper(
                 this.host.colorPalette,
                 { objectName: "callbackCardStyle", propertyName: "lostRevenueColor" },
@@ -211,9 +210,7 @@ export class Visual implements IVisual {
             rateColorSlice.selector = dataViewWildcard.createDataViewWildcardSelector(
                 dataViewWildcard.DataViewWildcardMatchingOption.InstancesAndTotals
             );
-            rateColorSlice.altConstantSelector = this.panelSelectionIds[0]
-                ? this.panelSelectionIds[0].getSelector()
-                : undefined;
+            rateColorSlice.altConstantSelector = undefined; // card-level constant persistence: swatch edits apply to ALL instances + round-trip into the pane (first-instance binding persisted a row-0-only override); fx rules stay per-instance via the wildcard selector;
             this.rateColorHelper = new ColorHelper(
                 this.host.colorPalette,
                 { objectName: "callbackCardStyle", propertyName: "rateColor1" },
@@ -609,11 +606,16 @@ export class Visual implements IVisual {
         // paints above the title panel; recreated each render because
         // render() rebuilds rootDiv wholesale.
         this.cornerSignature?.destroy();
-        this.cornerSignature = makeCornerBrackets(
-            this.rootDiv.node() as HTMLElement,
-            hc.active ? hc.color : accentToken(theme),
-            { variant: "cornerBracket", mirror: true, glowMix, cardRadius: panelRadius }
-        );
+        const sigResolved = resolveCardSignature(this.formattingSettings.cardSignature, {
+            autoHex: accentToken(theme), hcActive: hc.active, hcColor: hc.color, glowMix,
+        });
+        this.cornerSignature = sigResolved.visible
+            ? makeCornerBrackets(
+                this.rootDiv.node() as HTMLElement,
+                sigResolved.hex,
+                { variant: sigResolved.variant, mirror: true, glowMix, cardRadius: panelRadius }
+            )
+            : null;
     }
 
     /**
