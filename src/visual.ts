@@ -21,12 +21,12 @@ import * as d3 from "d3";
 
 import { dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
 import { ColorHelper } from "powerbi-visuals-utils-colorutils";
-import { toRgba } from "../../_shared/formatting/colorHelpers";
-import { Band, Theme, accentToken, bandColor } from "../../_shared/formatting/bandEngine";
-import { surfaceTokens, TABULAR_NUMS } from "../../_shared/formatting/designTokens";
-import { makeCornerBrackets, CardSignatureHandle } from "../../_shared/formatting/cardSignature";
-import { settle } from "../../_shared/formatting/motion";
-import { applyHighContrast, statusGlyph } from "../../_shared/formatting/highContrast";
+import { toRgba } from "./shared/colorHelpers";
+import { Band, Theme, accentToken, bandColor } from "./shared/bandEngine";
+import { surfaceTokens, TABULAR_NUMS } from "./shared/designTokens";
+import { makeCornerBrackets, CardSignatureHandle } from "./shared/cardSignature";
+import { settle } from "./shared/motion";
+import { applyHighContrast, statusGlyph } from "./shared/highContrast";
 
 import DataViewCategoryColumn = powerbi.DataViewCategoryColumn;
 
