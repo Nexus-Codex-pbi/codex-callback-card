@@ -261,7 +261,15 @@ export class Visual implements IVisual {
             titleEl.style.alignSelf = alignSelfFor(titleAlignVal);
             titleEl.style.textAlign = textAlignFor(titleAlignVal);
             if (t.titleColor?.value?.value) {
-                titleEl.style.color = this.isHighContrast ? this.hcForeground : t.titleColor.value.value;
+                // Adaptive default (D-16 sentinel): untouched shared-Title navy
+                // swaps to the dark text token on dark surfaces (theme keyed
+                // off the resolved panel background, same source as the v3
+                // theme pick below).
+                const setTitle = t.titleColor.value.value;
+                const adaptiveTitle = setTitle === "#1a1a2e"
+                    && themeFor(this.formattingSettings.callbackCardCard.panelBackground.value?.value ?? "#f5f4f0") === "dark"
+                    ? surfaceTokens("dark").text : setTitle;
+                titleEl.style.color = this.isHighContrast ? this.hcForeground : adaptiveTitle;
             }
             titleEl.style.padding = "8px 12px 4px";
             (this.rootDiv.node() as HTMLElement).appendChild(titleEl);
