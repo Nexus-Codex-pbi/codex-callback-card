@@ -244,6 +244,26 @@ export class Visual implements IVisual {
         const bgTransparencyPct = background.transparency.value ?? 100;
         this.rootDiv.style("background-color", toRgba(bgHex, bgTransparencyPct));
 
+        // ─── Theme-source ladder (v3.1 fix, 2026-07-13) ────────────────
+        // The VISIBLE surface governs light/dark — matching the rest of the
+        // suite ("change the Background and the whole card adapts"). Before
+        // this fix the theme keyed off panelBackground only, so painting the
+        // visual Background dark left the title navy-on-dark (invisible) and
+        // the cards cream. Precedence:
+        //   1. a painted visual Background (transparency < 100)  → its hex
+        //   2. else a user-chosen Panel background (≠ sentinel)  → that
+        //   3. else the report-theme palette background
+        //   4. else the cream sentinel default
+        const cbc = this.formattingSettings.callbackCardCard;
+        const PANEL_SENTINEL = "#f5f4f0";
+        const panelUserSet = (cbc.panelBackground.value?.value ?? PANEL_SENTINEL) !== PANEL_SENTINEL;
+        const bgPainted = (bgTransparencyPct ?? 100) < 100;
+        const reportThemeBg = (this.host.colorPalette as any)?.background?.value as string | undefined;
+        const governingBg = bgPainted ? bgHex
+            : panelUserSet ? (cbc.panelBackground.value!.value)
+            : (reportThemeBg ?? PANEL_SENTINEL);
+        const theme: Theme = themeFor(this.isHighContrast ? this.hcBackground : governingBg);
+
         // Internal title (rendered inside iframe so right-click on it satisfies
         // Policy 1180.2.5 — same approach as Heatmap Matrix). Now sourced from
         // the shared _shared/formatting/titleSettings.ts card (D-13/D-14).
@@ -266,8 +286,7 @@ export class Visual implements IVisual {
                 // off the resolved panel background, same source as the v3
                 // theme pick below).
                 const setTitle = t.titleColor.value.value;
-                const adaptiveTitle = setTitle === "#1a1a2e"
-                    && themeFor(this.formattingSettings.callbackCardCard.panelBackground.value?.value ?? "#f5f4f0") === "dark"
+                const adaptiveTitle = setTitle === "#1a1a2e" && theme === "dark"
                     ? surfaceTokens("dark").text : setTitle;
                 titleEl.style.color = this.isHighContrast ? this.hcForeground : adaptiveTitle;
             }
@@ -286,8 +305,13 @@ export class Visual implements IVisual {
         // honoured, D-16); applyHighContrast() is a no-op pass-through when
         // the host is not in high-contrast mode, so every colour read below
         // routes through it unconditionally.
-        const resolvedPanelBgHex = s.panelBackground.value?.value ?? "#f5f4f0";
-        const theme: Theme = themeFor(this.isHighContrast ? this.hcBackground : resolvedPanelBgHex);
+        // Panel surface: honour an explicit panel colour; else adopt the
+        // theme's elevated card token on a dark canvas (dark canvas → dark
+        // cards) while preserving the cream sentinel on light (D-06 saved-
+        // report parity — untouched light reports render pixel-identical).
+        const resolvedPanelBgHex = panelUserSet ? cbc.panelBackground.value!.value
+            : theme === "dark" ? surfaceTokens("dark").card
+            : PANEL_SENTINEL;
         const hc = applyHighContrast(
             {
                 isHighContrast: this.isHighContrast,
@@ -544,31 +568,32 @@ export class Visual implements IVisual {
                     .style("font-family", detailFontFamily)
                     .style("color", detailColor)
                     .text(`vs ${data.panels[0].window}`);
+            }
 
-                // ─── LED-block sparkline strip (v2 board signature): 6
-                // band-coloured blocks below each metric — the suite's
-                // quantised texture, reading as a mini sparkline in the
-                // band colour. Under HC: outlined system-colour blocks.
-                const strip = panelDiv.append("div")
-                    .style("display", "flex")
-                    .style("gap", "4px")
-                    .style("margin-top", "10px")
-                    .style("width", "100%")
-                    .style("align-self", "stretch");
-                for (let bi = 0; bi < 6; bi++) {
-                    const block = strip.append("span")
-                        .style("flex", "1")
-                        .style("height", "11px")
-                        .style("border-radius", "2px");
-                    if (hc.active) {
-                        block.style("background", "transparent")
-                            .style("border", `1px solid ${hc.color}`);
-                    } else {
-                        block.style("background", sideToken)
-                            .style("box-shadow", glowMix > 0
-                                ? `0 0 6px color-mix(in srgb, ${sideToken} ${Math.max(glowMix, 35)}%, transparent)`
-                                : "none");
-                    }
+            // ─── LED-block sparkline strip (v2 board signature): 6
+            // band-coloured blocks below EVERY metric (incl. the baseline —
+            // it renders in the accent token when the side carries no band),
+            // the suite's quantised texture reading as a mini sparkline in
+            // the band colour. Under HC: outlined system-colour blocks.
+            const strip = panelDiv.append("div")
+                .style("display", "flex")
+                .style("gap", "4px")
+                .style("margin-top", "10px")
+                .style("width", "100%")
+                .style("align-self", "stretch");
+            for (let bi = 0; bi < 6; bi++) {
+                const block = strip.append("span")
+                    .style("flex", "1")
+                    .style("height", "11px")
+                    .style("border-radius", "2px");
+                if (hc.active) {
+                    block.style("background", "transparent")
+                        .style("border", `1px solid ${hc.color}`);
+                } else {
+                    block.style("background", sideToken)
+                        .style("box-shadow", glowMix > 0
+                            ? `0 0 6px color-mix(in srgb, ${sideToken} ${Math.max(glowMix, 35)}%, transparent)`
+                            : "none");
                 }
             }
 
