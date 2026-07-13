@@ -8,6 +8,7 @@ import { BackgroundSettings } from "./shared/backgroundSettings";
 import { TitleSettings } from "./shared/titleSettings";
 import { alignSlice, alignSelfFor, textAlignFor, makeFontControl } from "./shared/textFormatting";
 import { CardSignatureSettings } from "./shared/cardSignatureSettings";
+import { BorderSettings } from "./shared/borderSettings";
 
 const ConstantOrRule = powerbi.VisualEnumerationInstanceKinds.ConstantOrRule;
 
@@ -188,6 +189,7 @@ export class VisualFormattingSettingsModel extends FormattingSettingsModel {
     titleSettings = new TitleSettings();
     callbackCardCard = new CallbackCardSettings();
     background = new BackgroundSettings();
+    visualBorder = new BorderSettings();
 
     constructor() {
         super();
@@ -205,6 +207,6 @@ export class VisualFormattingSettingsModel extends FormattingSettingsModel {
     }
 
     cards = [this.titleSettings, this.callbackCardCard, this.background,
-        this.cardSignature
+        this.cardSignature, this.visualBorder
     ];
 }

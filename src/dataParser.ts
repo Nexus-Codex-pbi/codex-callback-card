@@ -14,6 +14,10 @@ export interface CallbackPanel {
     lostRevenue: number | null;
     lostRevenueFormat: string | null;
     sortOrder: number | null;
+    /** Original category-row index (BEFORE the sortOrder sort below), so the
+     *  visual builds each panel's selection ID against the right category row
+     *  for cross-filtering — the sort must not desync selection from display. */
+    categoryIndex: number;
 }
 
 export interface CallbackData {
@@ -64,6 +68,7 @@ export function parseDataView(dv: DataView): CallbackData | null {
             lostRevenue: getVal("lostRevenue"),
             lostRevenueFormat: getFormat("lostRevenue"),
             sortOrder: getVal("sortOrder"),
+            categoryIndex: r,
         });
     }
 

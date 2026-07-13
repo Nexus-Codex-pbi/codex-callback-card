@@ -28,6 +28,7 @@ import { makeCornerBrackets, CardSignatureHandle } from "./shared/cardSignature"
 import { resolveCardSignature } from "./shared/cardSignatureSettings";
 import { settle } from "./shared/motion";
 import { applyHighContrast, statusGlyph } from "./shared/highContrast";
+import { applyBorder } from "./shared/borderSettings";
 
 import DataViewCategoryColumn = powerbi.DataViewCategoryColumn;
 
@@ -152,9 +153,13 @@ export class Visual implements IVisual {
             this.panelTooltipItems = [];
             for (let i = 0; i < data.panels.length; i++) {
                 if (categories) {
+                    // Use the panel's ORIGINAL category row (panels are sorted
+                    // by Sort Order in parseDataView; `i` is the sorted display
+                    // position, which desyncs from the category array and made
+                    // clicks cross-filter the wrong row — Neil 2026-07-13).
                     this.panelSelectionIds.push(
                         this.host.createSelectionIdBuilder()
-                            .withCategory(categories, i)
+                            .withCategory(categories, data.panels[i].categoryIndex)
                             .createSelectionId()
                     );
                 }
@@ -218,6 +223,25 @@ export class Visual implements IVisual {
             );
 
             this.render(data, options.viewport.width, options.viewport.height);
+
+            // Visual's own Border card — CSS border on the outer render root
+            // (rootDiv holds title + panels), so it wraps the WHOLE card and
+            // its Corner Radius rounds the visual's own corners. Applied AFTER
+            // render() (which clears + repaints rootDiv's children) since the
+            // border is a style on rootDiv itself. border-box keeps the stroke
+            // inside the tile (no extra scrollbars); overflow:hidden lets the
+            // radius clip. fx colour honoured via the metadata objects.
+            const rootEl = this.rootDiv.node() as HTMLElement;
+            rootEl.style.boxSizing = "border-box";
+            if (this.formattingSettings.visualBorder?.show?.value) {
+                rootEl.style.overflow = "hidden";
+            }
+            applyBorder(rootEl, this.formattingSettings.visualBorder, {
+                hcActive: this.isHighContrast,
+                hcColor: this.hcForeground,
+                palette: this.host.colorPalette,
+                metadataObjects: options.dataViews?.[0]?.metadata?.objects,
+            });
             this.events.renderingFinished(options);
         } catch (e) {
             this.events.renderingFailed(options, String(e));
