@@ -544,6 +544,32 @@ export class Visual implements IVisual {
                     .style("font-family", detailFontFamily)
                     .style("color", detailColor)
                     .text(`vs ${data.panels[0].window}`);
+
+                // ─── LED-block sparkline strip (v2 board signature): 6
+                // band-coloured blocks below each metric — the suite's
+                // quantised texture, reading as a mini sparkline in the
+                // band colour. Under HC: outlined system-colour blocks.
+                const strip = panelDiv.append("div")
+                    .style("display", "flex")
+                    .style("gap", "4px")
+                    .style("margin-top", "10px")
+                    .style("width", "100%")
+                    .style("align-self", "stretch");
+                for (let bi = 0; bi < 6; bi++) {
+                    const block = strip.append("span")
+                        .style("flex", "1")
+                        .style("height", "11px")
+                        .style("border-radius", "2px");
+                    if (hc.active) {
+                        block.style("background", "transparent")
+                            .style("border", `1px solid ${hc.color}`);
+                    } else {
+                        block.style("background", sideToken)
+                            .style("box-shadow", glowMix > 0
+                                ? `0 0 6px color-mix(in srgb, ${sideToken} ${Math.max(glowMix, 35)}%, transparent)`
+                                : "none");
+                    }
+                }
             }
 
             // Metric 1 / Metric 2
