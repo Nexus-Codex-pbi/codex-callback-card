@@ -32,6 +32,7 @@ import { applyBorder } from "./shared/borderSettings";
 
 import DataViewCategoryColumn = powerbi.DataViewCategoryColumn;
 import { LicenseGate } from "./shared/licensing";
+import { formatModelNumber } from "./shared/numberFormat";
 
 /** Luminance-based theme pick (same 0.55 threshold convention as the 01-15
  * pilot / utils contrastText): decides whether the resolved panel background
@@ -768,33 +769,10 @@ export class Visual implements IVisual {
     }
 
     private formatValue(n: number, format: string | null): string {
-        if (!format) {
-            return n.toLocaleString("en-AU");
-        }
-
-        // Percentage formats: "0.00%;-0.00%;0.00%", "0%", "0.0%", etc.
-        if (format.indexOf("%") >= 0) {
-            // PBI stores percentages as decimals (0.046 = 4.6%)
-            const pct = n * 100;
-            // Count decimal places from format
-            const match = format.match(/0\.(0+)%/);
-            const decimals = match ? match[1].length : 0;
-            return `${pct.toFixed(decimals)}%`;
-        }
-
-        // Currency formats: "$#,##0", "$#,##0.00", "£#,##0", etc.
-        const currMatch = format.match(/^([^#0]*)(#[,#]*0(?:\.0+)?)/);
-        if (currMatch && currMatch[1] && /[\$£€¥]/.test(currMatch[1])) {
-            const symbol = currMatch[1].trim();
-            const decMatch = format.match(/\.([0]+)/);
-            const decimals = decMatch ? decMatch[1].length : 0;
-            return `${symbol}${n.toLocaleString("en-AU", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
-        }
-
-        // Decimal formats: "0.0", "0.00", "#,##0", "#,##0.00", etc.
-        const decMatch = format.match(/\.([0#]+)/);
-        const decimals = decMatch ? decMatch[1].replace(/#/g, "").length : 0;
-        return n.toLocaleString("en-AU", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        // Locale pinned to en-AU, as this card always has. Optional `#` digits are
+        // honoured: a single derived count used as both min and max rendered
+        // `0.##` 12.34 as "12" (NEXUS cycle-02 F3).
+        return formatModelNumber(n, format, "en-AU");
     }
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {
