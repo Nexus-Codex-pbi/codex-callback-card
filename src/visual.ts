@@ -218,8 +218,9 @@ export class Visual implements IVisual {
             // `altConstantSelector` bound to a concrete selectionId for the
             // "set for all" swatch edit path. Resolved per-panel at render via
             // ColorHelper.getColorForMeasure against each category's own
-            // per-instance object overrides (categories.objects[i]) — the
-            // correct category-scoped resolution, not a single flat value.
+            // per-instance object overrides (categories.objects[categoryIndex],
+            // the ORIGINAL row — not the sorted display slot) — the correct
+            // category-scoped resolution, not a single flat value.
             const lostRevenueSlice = this.formattingSettings.callbackCardCard.lostRevenueColor;
             lostRevenueSlice.selector = dataViewWildcard.createDataViewWildcardSelector(
                 dataViewWildcard.DataViewWildcardMatchingOption.InstancesAndTotals
@@ -542,7 +543,12 @@ export class Visual implements IVisual {
             // panel 1+ keeps the existing static rateColor2 alternation.
             // v2 board: tabular numerals, tight line-height, settle-once motion.
             if (panel.rate !== null) {
-                const instanceObjects = this.categoricalCategories?.objects?.[i];
+                // Per-instance overrides belong to the CATEGORY, not the display
+                // slot: `i` is the post-sort position, so indexing objects by it
+                // handed the first displayed panel another category's colour
+                // (NEXUS cycle-02 §F1). Key by the preserved original row, the
+                // same identity the selection ID is built from at :187.
+                const instanceObjects = this.categoricalCategories?.objects?.[panel.categoryIndex];
                 const resolvedRateColor = hc.active
                     ? hc.color
                     : (i === 0
@@ -681,7 +687,9 @@ export class Visual implements IVisual {
                     .text(this.formatValue(panel.lostCount, panel.lostCountFormat));
 
                 if (s.showHighlightValue.value && panel.lostRevenue !== null) {
-                    const instanceObjects = this.categoricalCategories?.objects?.[i];
+                    // Same identity keying as the headline colour above — the
+                    // sorted display index is not the category row (cycle-02 §F1).
+                    const instanceObjects = this.categoricalCategories?.objects?.[panel.categoryIndex];
                     const resolvedLostColor = hc.active
                         ? hc.color
                         : (this.lostRevenueColorHelper?.getColorForMeasure(instanceObjects, "lostRevenue")
