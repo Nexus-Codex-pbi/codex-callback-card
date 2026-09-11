@@ -713,10 +713,14 @@ export class Visual implements IVisual {
             }
 
             // Metric 1 / Metric 2
+            const metrics: string[] = [];
             if (s.showMetric1.value && panel.callbackCount !== null) {
-                const metric2Str = panel.totalCount !== null
-                    ? ` / ${this.formatValue(panel.totalCount, panel.totalCountFormat)}`
-                    : "";
+                metrics.push(this.formatValue(panel.callbackCount, panel.callbackCountFormat));
+            }
+            if (panel.totalCount !== null) {
+                metrics.push(this.formatValue(panel.totalCount, panel.totalCountFormat));
+            }
+            if (metrics.length > 0) {
                 panelDiv.append("div")
                     .style("font-size", `${detailFontSize}px`)
                     .style("font-family", detailFontFamily)
@@ -727,11 +731,13 @@ export class Visual implements IVisual {
                     .style("text-decoration", detailDecoration)
                     .style("align-self", alignSelfFor(detailAlignVal))
                     .style("text-align", textAlignFor(detailAlignVal))
-                    .text(`${this.formatValue(panel.callbackCount, panel.callbackCountFormat)}${metric2Str}`);
+                    .text(metrics.join(" / "));
             }
 
             // Metric 3 + Highlight value
-            if (s.showMetric3.value && panel.lostCount !== null) {
+            const showMetric3 = s.showMetric3.value && panel.lostCount !== null;
+            const showHighlight = s.showHighlightValue.value && panel.lostRevenue !== null;
+            if (showMetric3 || showHighlight) {
                 const metricLine = panelDiv.append("div")
                     .style("font-size", `${detailFontSize}px`)
                     .style("font-family", detailFontFamily)
@@ -742,11 +748,13 @@ export class Visual implements IVisual {
                     .style("align-self", alignSelfFor(detailAlignVal))
                     .style("text-align", textAlignFor(detailAlignVal));
 
-                metricLine.append("span")
-                    .style("color", detailColor)
-                    .text(this.formatValue(panel.lostCount, panel.lostCountFormat));
+                if (showMetric3) {
+                    metricLine.append("span")
+                        .style("color", detailColor)
+                        .text(this.formatValue(panel.lostCount, panel.lostCountFormat));
+                }
 
-                if (s.showHighlightValue.value && panel.lostRevenue !== null) {
+                if (showHighlight) {
                     // Same identity keying as the headline colour above — the
                     // sorted display index is not the category row (cycle-02 §F1).
                     const instanceObjects = this.categoricalCategories?.objects?.[panel.categoryIndex];
@@ -758,7 +766,7 @@ export class Visual implements IVisual {
                     metricLine.append("span")
                         .style("color", resolvedLostColor)
                         .style("font-weight", "600")
-                        .text(` / ${this.formatValue(panel.lostRevenue, panel.lostRevenueFormat)}`);
+                        .text(`${showMetric3 ? " / " : ""}${this.formatValue(panel.lostRevenue, panel.lostRevenueFormat)}`);
                 }
             }
 
