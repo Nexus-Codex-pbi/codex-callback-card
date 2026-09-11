@@ -107,6 +107,14 @@ export class Visual implements IVisual {
         this.tooltipService = options.host.tooltipService;
         this.localizationManager = this.host.createLocalizationManager();
         this.formattingSettingsService = new FormattingSettingsService();
+        // NEXUS cycle-02 §F7: update() returns early when no dataView has
+        // arrived (landing state), so getFormattingModel() used to hand the
+        // SDK an undefined model and throw "Cannot read properties of
+        // undefined (reading 'cards')" — before the first update and on any
+        // no-data frame. The default model is data-independent, so build it
+        // here; update() still replaces it with the populated model the
+        // moment a dataView exists.
+        this.formattingSettings = new VisualFormattingSettingsModel();
 
         // Context menu on the target — Policy 1180.2.5.
         // Matches Microsoft sample BarChart pattern: one listener on the root
@@ -823,6 +831,11 @@ export class Visual implements IVisual {
     }
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {
+        // Defensive twin of the constructor initialisation (§F7): the pane may
+        // ask for the model at any point in the lifecycle, including before an
+        // update and after a no-data frame.
+        if (!this.formattingSettings) {
+            this.formattingSettings = new VisualFormattingSettingsModel();
         return this.formattingSettingsService.buildFormattingModel(this.formattingSettings);
     }
 
