@@ -84,6 +84,30 @@ export class Visual implements IVisual {
 
     private lastUpdateOptions: VisualUpdateOptions | null = null;
 
+    // ─── Owned DOM listeners (NEXUS cycle-02 additional gap 4) ──────────
+    // destroy() removed the child DOM but never unregistered the listeners
+    // it installed, so a node retained by anything outside the visual kept a
+    // live closure over the selection manager, the tooltip service and the
+    // panel caches — a dispatched click on a destroyed card still selected
+    // Alpha. Every listener this visual installs is now recorded and released
+    // by its owner: panel listeners at the start of each render (the nodes
+    // they sit on are about to be discarded) and in destroy(); the target's
+    // context-menu listener only in destroy(), since it must outlive renders.
+    private panelListeners: Array<{ node: HTMLElement; type: string; handler: EventListener }> = [];
+    private contextMenuHandler: ((e: MouseEvent) => void) | null = null;
+
+    private ownPanelListener(node: HTMLElement, type: string, handler: EventListener): void {
+        node.addEventListener(type, handler);
+        this.panelListeners.push({ node, type, handler });
+    }
+
+    private releasePanelListeners(): void {
+        for (const { node, type, handler } of this.panelListeners) {
+            node.removeEventListener(type, handler);
+        }
+        this.panelListeners = [];
+    }
+
 
     constructor(options: VisualConstructorOptions) {
 
@@ -119,10 +143,11 @@ export class Visual implements IVisual {
         // Context menu on the target — Policy 1180.2.5.
         // Matches Microsoft sample BarChart pattern: one listener on the root
         // element, fires for every right-click anywhere in the visual's bounds.
-        this.target.addEventListener("contextmenu", (e: MouseEvent) => {
+        this.contextMenuHandler = (e: MouseEvent) => {
             this.selectionManager.showContextMenu({}, { x: e.clientX, y: e.clientY });
             e.preventDefault();
-        });
+        };
+        this.target.addEventListener("contextmenu", this.contextMenuHandler);
 
         this.rootDiv = d3.select(options.element)
             .append("div")
@@ -290,6 +315,10 @@ export class Visual implements IVisual {
     }
 
     private render(data: CallbackData, width: number, height: number): void {
+        // The panel nodes below are about to be discarded; drop their
+        // listeners with them rather than leaving live closures on detached
+        // DOM (NEXUS cycle-02 additional gap 4).
+        this.releasePanelListeners();
         this.rootDiv.selectAll("*").remove();
 
         // ─── Dedicated background layer (D-05) ─────────────────────────
@@ -525,7 +554,7 @@ export class Visual implements IVisual {
 
             // Tooltip on panel hover
             const panelNode = panelDiv.node() as HTMLElement;
-            panelNode.addEventListener("mousemove", (e: MouseEvent) => {
+            this.ownPanelListener(panelNode, "mousemove", (e: MouseEvent) => {
                 const items = this.panelTooltipItems[i];
                 if (items && items.length > 0) {
                     this.tooltipService.show({
@@ -536,12 +565,12 @@ export class Visual implements IVisual {
                     });
                 }
             });
-            panelNode.addEventListener("mouseleave", () => {
+            this.ownPanelListener(panelNode, "mouseleave", () => {
                 this.tooltipService.hide({ isTouchEvent: false, immediately: false });
             });
 
             // Click to cross-filter
-            panelNode.addEventListener("click", (e: MouseEvent) => {
+            this.ownPanelListener(panelNode, "click", (e: MouseEvent) => {
                 if (this.panelSelectionIds[i]) {
                     this.selectionManager.select(this.panelSelectionIds[i], e.ctrlKey || e.metaKey);
                 }
@@ -791,6 +820,9 @@ export class Visual implements IVisual {
         this.cornerSignature?.destroy();
         this.cornerSignature = null;
         this.lastDisplayValues = [];
+        // Same reason as render(): the panels being cleared own listeners
+        // (NEXUS cycle-02 additional gap 4).
+        this.releasePanelListeners();
         this.rootDiv.selectAll("*").remove();
 
         // Dedicated background layer (D-05) — same rootDiv as render(), so
@@ -851,6 +883,7 @@ export class Visual implements IVisual {
         // update and after a no-data frame.
         if (!this.formattingSettings) {
             this.formattingSettings = new VisualFormattingSettingsModel();
+        }
         return this.formattingSettingsService.buildFormattingModel(this.formattingSettings);
     }
 
@@ -860,8 +893,22 @@ export class Visual implements IVisual {
         this.licenseGate.dispose();
         this.cornerSignature?.destroy();
         this.cornerSignature = null;
+        // Release every listener this visual installed, before the element
+        // references go (NEXUS cycle-02 additional gap 4). Removing the child
+        // DOM is not enough: a node retained outside the visual keeps its
+        // listeners, and those closures read the caches below.
+        this.releasePanelListeners();
+        if (this.contextMenuHandler && this.target) {
+            this.target.removeEventListener("contextmenu", this.contextMenuHandler);
+        }
+        this.contextMenuHandler = null;
         this.rootDiv?.selectAll("*").remove();
         this.rootDiv = null;
         this.target = null;
+        // Panel identity/tooltip caches are per-render state, not visual
+        // state — a destroyed card holds no rows.
+        this.panelSelectionIds = [];
+        this.panelTooltipItems = [];
+        this.lastDisplayValues = [];
     }
 }
