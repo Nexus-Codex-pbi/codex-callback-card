@@ -816,9 +816,12 @@ export class Visual implements IVisual {
         const background = this.formattingSettings?.background;
         const bgHex = background?.backgroundColor.value?.value ?? "#ffffff";
         const bgTransparencyPct = background?.transparency.value ?? 100;
-        this.rootDiv.style("background-color", toRgba(bgHex, bgTransparencyPct));
+        this.rootDiv.style("background-color", this.isHighContrast
+            ? this.hcBackground : toRgba(bgHex, bgTransparencyPct));
 
-        const color = this.isHighContrast ? this.hcForeground : "#666666";
+        const behind = (this.host.colorPalette as any)?.background?.value ?? "#ffffff";
+        const color = this.isHighContrast ? this.hcForeground
+            : readableInk("#666666", compositeOver(bgHex, bgTransparencyPct, behind));
         const landing = this.rootDiv.append("div")
             .style("width", "100%")
             .style("height", "100%")
