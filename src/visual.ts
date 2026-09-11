@@ -257,11 +257,18 @@ export class Visual implements IVisual {
             // border is a style on rootDiv itself. border-box keeps the stroke
             // inside the tile (no extra scrollbars); overflow:hidden lets the
             // radius clip. fx colour honoured via the metadata objects.
+            //
+            // NEXUS cycle-02 §F5: this was a one-way switch — border ON set
+            // overflow:hidden and border OFF set nothing, so off -> on -> off
+            // left the card permanently unscrollable (515px of content in a
+            // 90px tile). applyBorder() clears border AND border-radius when
+            // the card is off (shared/borderSettings.ts:117), so with no
+            // border there is no radius left to clip and "auto" — the value
+            // the constructor gives rootDiv — is the correct restored state.
+            // Explicit both ways, per the doc's second alternative.
             const rootEl = this.rootDiv.node() as HTMLElement;
             rootEl.style.boxSizing = "border-box";
-            if (this.formattingSettings.visualBorder?.show?.value) {
-                rootEl.style.overflow = "hidden";
-            }
+            rootEl.style.overflow = this.formattingSettings.visualBorder?.show?.value ? "hidden" : "auto";
             applyBorder(rootEl, this.formattingSettings.visualBorder, {
                 hcActive: this.isHighContrast,
                 hcColor: this.hcForeground,
