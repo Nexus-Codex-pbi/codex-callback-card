@@ -21,7 +21,7 @@ import * as d3 from "d3";
 
 import { dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
 import { ColorHelper } from "powerbi-visuals-utils-colorutils";
-import { toRgba } from "./shared/colorHelpers";
+import { toRgba, contrastInk } from "./shared/colorHelpers";
 import { Band, Theme, accentToken, bandColor } from "./shared/bandEngine";
 import { surfaceTokens, TABULAR_NUMS } from "./shared/designTokens";
 import { makeCornerBrackets, CardSignatureHandle } from "./shared/cardSignature";
@@ -405,8 +405,23 @@ export class Visual implements IVisual {
         const rateColors = hc.active
             ? [hc.color, hc.color]
             : [s.rateColor1.value?.value ?? "#d4920a", s.rateColor2.value?.value ?? "#007064"];
-        const labelColor = hc.active ? hc.color : (s.labelColor.value?.value ?? "#5e5d5a");
-        const detailColor = hc.active ? hc.color : (s.detailColor.value?.value ?? "#5e5d5a");
+        // ─── Label/detail ink (NEXUS cycle-02 additional gap 3) ─────────
+        // The default swatch #5e5d5a is tuned for the cream sentinel panel.
+        // On a dark canvas the panel adopts the dark card token above, and
+        // that same grey measured 2.899:1 against it — below every legibility
+        // bar. UNTOUCHED defaults now adapt: contrastInk() picks whichever of
+        // the light-surface default and the dark-theme muted token has more
+        // contrast against the panel the ink is actually painted on.
+        //   cream #f5f4f0 -> #5e5d5a 5.983 vs #8f8ab8 2.938 -> unchanged
+        //   card  #0d0d24 -> #5e5d5a 2.899 vs #8f8ab8 5.904 -> adapts
+        // So a light saved report renders exactly as before. An EXPLICIT
+        // colour is never second-guessed: the sentinel test below is the same
+        // untouched-default test panelBackground already uses (D-16).
+        const INK_SENTINEL = "#5e5d5a";
+        const adaptiveInk = (set: string | undefined): string =>
+            !set || set === INK_SENTINEL ? contrastInk(panelBg, INK_SENTINEL, tokens.muted) : set;
+        const labelColor = hc.active ? hc.color : adaptiveInk(s.labelColor.value?.value);
+        const detailColor = hc.active ? hc.color : adaptiveInk(s.detailColor.value?.value);
         const rateFontSize = s.rateFontSize.value ?? 28;
         const labelFontSize = s.labelFontSize.value ?? 11;
         const detailFontSize = s.detailFontSize.value ?? 10;
