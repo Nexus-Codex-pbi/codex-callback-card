@@ -299,7 +299,17 @@ export class Visual implements IVisual {
         const background = this.formattingSettings.background;
         const bgHex = background.backgroundColor.value?.value ?? "#ffffff";
         const bgTransparencyPct = background.transparency.value ?? 100;
-        this.rootDiv.style("background-color", toRgba(bgHex, bgTransparencyPct));
+        // NEXUS cycle-02 §F6: the outer layer painted the ORDINARY background
+        // even in high contrast, while the title below took the HC foreground
+        // — a user-set white background plus a white HC foreground rendered
+        // the title invisible. Foreground and background for the title/outer
+        // layer are now resolved TOGETHER from the same HC palette the panels
+        // already use, so the pair is legible by construction. Ordinary (non
+        // high-contrast) painting is untouched.
+        this.rootDiv.style(
+            "background-color",
+            this.isHighContrast ? this.hcBackground : toRgba(bgHex, bgTransparencyPct)
+        );
 
         // ─── Theme-source ladder (v3.1 fix, 2026-07-13) ────────────────
         // The VISIBLE surface governs light/dark — matching the rest of the
