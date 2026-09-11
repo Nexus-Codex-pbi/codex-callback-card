@@ -21,9 +21,9 @@ import * as d3 from "d3";
 
 import { dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
 import { ColorHelper } from "powerbi-visuals-utils-colorutils";
-import { toRgba, contrastInk } from "./shared/colorHelpers";
+import { toRgba, compositeOver, contrastInk, contrastRatio } from "./shared/colorHelpers";
 import { Band, Theme, accentToken, bandColor } from "./shared/bandEngine";
-import { surfaceTokens, TABULAR_NUMS } from "./shared/designTokens";
+import { mix, surfaceTokens, TABULAR_NUMS } from "./shared/designTokens";
 import { makeCornerBrackets, CardSignatureHandle } from "./shared/cardSignature";
 import { resolveCardSignature } from "./shared/cardSignatureSettings";
 import { settle } from "./shared/motion";
@@ -34,15 +34,15 @@ import DataViewCategoryColumn = powerbi.DataViewCategoryColumn;
 import { LicenseGate } from "./shared/licensing";
 import { formatModelNumber } from "./shared/numberFormat";
 
-/** Luminance-based theme pick (same 0.55 threshold convention as the 01-15
- * pilot / utils contrastText): decides whether the resolved panel background
- * reads as a "dark" or "light" surface, so the v3 token set stays legible. */
-function themeFor(hex: string): Theme {
-    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})/i.exec(hex || "");
-    if (!m) return "dark";
-    const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.55 ? "light" : "dark";
+/** Keep a default's hue where possible, moving only as far as legibility requires. */
+function readableInk(color: string, surface: string, minimum = 4.5): string {
+    if (contrastRatio(color, surface) >= minimum) return color;
+    const ink = contrastInk(surface, "#000000", "#ffffff");
+    for (let step = 1; step <= 20; step++) {
+        const candidate = mix(color, ink, step / 20);
+        if (contrastRatio(candidate, surface) >= minimum) return candidate;
+    }
+    return ink;
 }
 
 export class Visual implements IVisual {
@@ -348,25 +348,15 @@ export class Visual implements IVisual {
             this.isHighContrast ? this.hcBackground : toRgba(bgHex, bgTransparencyPct)
         );
 
-        // ─── Theme-source ladder (v3.1 fix, 2026-07-13) ────────────────
-        // The VISIBLE surface governs light/dark — matching the rest of the
-        // suite ("change the Background and the whole card adapts"). Before
-        // this fix the theme keyed off panelBackground only, so painting the
-        // visual Background dark left the title navy-on-dark (invisible) and
-        // the cards cream. Precedence:
-        //   1. a painted visual Background (transparency < 100)  → its hex
-        //   2. else a user-chosen Panel background (≠ sentinel)  → that
-        //   3. else the report-theme palette background
-        //   4. else the cream sentinel default
+        // The title sits on the composited outer layer, not on a panel.
         const cbc = this.formattingSettings.callbackCardCard;
         const PANEL_SENTINEL = "#f5f4f0";
         const panelUserSet = (cbc.panelBackground.value?.value ?? PANEL_SENTINEL) !== PANEL_SENTINEL;
-        const bgPainted = (bgTransparencyPct ?? 100) < 100;
         const reportThemeBg = (this.host.colorPalette as any)?.background?.value as string | undefined;
-        const governingBg = bgPainted ? bgHex
-            : panelUserSet ? (cbc.panelBackground.value!.value)
-            : (reportThemeBg ?? PANEL_SENTINEL);
-        const theme: Theme = themeFor(this.isHighContrast ? this.hcBackground : governingBg);
+        const outerSurface = compositeOver(bgHex, bgTransparencyPct, reportThemeBg ?? "#ffffff");
+        const governingBg = this.isHighContrast ? this.hcBackground
+            : panelUserSet ? cbc.panelBackground.value!.value : outerSurface;
+        const theme: Theme = contrastInk(governingBg, "#000000", "#ffffff") === "#000000" ? "light" : "dark";
 
         // Internal title (rendered inside iframe so right-click on it satisfies
         // Policy 1180.2.5 — same approach as Heatmap Matrix). Now sourced from
@@ -385,13 +375,10 @@ export class Visual implements IVisual {
             titleEl.style.alignSelf = alignSelfFor(titleAlignVal);
             titleEl.style.textAlign = textAlignFor(titleAlignVal);
             if (t.titleColor?.value?.value) {
-                // Adaptive default (D-16 sentinel): untouched shared-Title navy
-                // swaps to the dark text token on dark surfaces (theme keyed
-                // off the resolved panel background, same source as the v3
-                // theme pick below).
                 const setTitle = t.titleColor.value.value;
-                const adaptiveTitle = setTitle === "#1a1a2e" && theme === "dark"
-                    ? surfaceTokens("dark").text : setTitle;
+                const adaptiveTitle = setTitle === "#1a1a2e"
+                    ? readableInk(contrastInk(outerSurface, setTitle, surfaceTokens("dark").text), outerSurface)
+                    : setTitle;
                 titleEl.style.color = this.isHighContrast ? this.hcForeground : adaptiveTitle;
             }
             titleEl.style.padding = "8px 12px 4px";
@@ -431,26 +418,19 @@ export class Visual implements IVisual {
         const hairline = hc.active ? hc.color : tokens.border;
 
         const panelBg = hc.active ? hc.background : resolvedPanelBgHex;
+        const authoredStyle = this.lastUpdateOptions?.dataViews?.[0]?.metadata?.objects?.callbackCardStyle;
+        const defaultInk = (property: string, color: string): string =>
+            authoredStyle?.[property] !== undefined ? color : readableInk(color, panelBg);
         const rateColors = hc.active
             ? [hc.color, hc.color]
-            : [s.rateColor1.value?.value ?? "#d4920a", s.rateColor2.value?.value ?? "#007064"];
-        // ─── Label/detail ink (NEXUS cycle-02 additional gap 3) ─────────
-        // The default swatch #5e5d5a is tuned for the cream sentinel panel.
-        // On a dark canvas the panel adopts the dark card token above, and
-        // that same grey measured 2.899:1 against it — below every legibility
-        // bar. UNTOUCHED defaults now adapt: contrastInk() picks whichever of
-        // the light-surface default and the dark-theme muted token has more
-        // contrast against the panel the ink is actually painted on.
-        //   cream #f5f4f0 -> #5e5d5a 5.983 vs #8f8ab8 2.938 -> unchanged
-        //   card  #0d0d24 -> #5e5d5a 2.899 vs #8f8ab8 5.904 -> adapts
-        // So a light saved report renders exactly as before. An EXPLICIT
-        // colour is never second-guessed: the sentinel test below is the same
-        // untouched-default test panelBackground already uses (D-16).
+            : [defaultInk("rateColor1", s.rateColor1.value?.value ?? "#d4920a"),
+                defaultInk("rateColor2", s.rateColor2.value?.value ?? "#007064")];
         const INK_SENTINEL = "#5e5d5a";
-        const adaptiveInk = (set: string | undefined): string =>
-            !set || set === INK_SENTINEL ? contrastInk(panelBg, INK_SENTINEL, tokens.muted) : set;
-        const labelColor = hc.active ? hc.color : adaptiveInk(s.labelColor.value?.value);
-        const detailColor = hc.active ? hc.color : adaptiveInk(s.detailColor.value?.value);
+        const adaptiveInk = (property: string, set: string | undefined): string =>
+            authoredStyle?.[property] !== undefined ? (set ?? INK_SENTINEL)
+                : readableInk(contrastInk(panelBg, INK_SENTINEL, tokens.muted), panelBg);
+        const labelColor = hc.active ? hc.color : adaptiveInk("labelColor", s.labelColor.value?.value);
+        const detailColor = hc.active ? hc.color : adaptiveInk("detailColor", s.detailColor.value?.value);
         const rateFontSize = s.rateFontSize.value ?? 28;
         const labelFontSize = s.labelFontSize.value ?? 11;
         const detailFontSize = s.detailFontSize.value ?? 10;
@@ -629,7 +609,9 @@ export class Visual implements IVisual {
                 const resolvedRateColor = hc.active
                     ? hc.color
                     : (i === 0
-                        ? (this.rateColorHelper?.getColorForMeasure(instanceObjects, "rate") ?? rateColors[0])
+                        ? (instanceObjects?.callbackCardStyle?.rateColor1 !== undefined
+                            ? this.rateColorHelper?.getColorForMeasure(instanceObjects, "rate") ?? rateColors[0]
+                            : rateColors[0])
                         : rateColors[i % rateColors.length]);
                 const displayed = this.formatValue(panel.rate, this.headlineFormat(panel.rateFormat));
                 const valueSel = panelDiv.append("div")
@@ -686,7 +668,8 @@ export class Visual implements IVisual {
                     .style("padding", "3px 9px")
                     .style("border-radius", "999px")
                     .style("line-height", "1.3")
-                    .style("color", sideToken)
+                    .style("color", hc.active ? hc.color
+                        : readableInk(sideToken, compositeOver(sideToken, 85, panelBg), 4.6))
                     .text(chipText);
                 if (hc.active) {
                     chip.style("background", "transparent")
@@ -767,10 +750,11 @@ export class Visual implements IVisual {
                     // Same identity keying as the headline colour above — the
                     // sorted display index is not the category row (cycle-02 §F1).
                     const instanceObjects = this.categoricalCategories?.objects?.[panel.categoryIndex];
-                    const resolvedLostColor = hc.active
-                        ? hc.color
-                        : (this.lostRevenueColorHelper?.getColorForMeasure(instanceObjects, "lostRevenue")
-                            ?? s.lostRevenueColor.value?.value ?? "#e60e22");
+                    const rawLostColor = this.lostRevenueColorHelper?.getColorForMeasure(instanceObjects, "lostRevenue")
+                        ?? s.lostRevenueColor.value?.value ?? "#e60e22";
+                    const resolvedLostColor = hc.active ? hc.color
+                        : instanceObjects?.callbackCardStyle?.lostRevenueColor !== undefined
+                            ? rawLostColor : defaultInk("lostRevenueColor", rawLostColor);
                     metricLine.append("span")
                         .style("color", resolvedLostColor)
                         .style("font-weight", "600")
