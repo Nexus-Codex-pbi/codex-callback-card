@@ -415,10 +415,18 @@ export class Visual implements IVisual {
         // "Bold" renders 700; "not bold" renders each surface's own
         // pre-existing rest-weight (see weightFor below) rather than a flat
         // 400, so the default (off) state is pixel-identical to before.
+        //
+        // NEXUS cycle-02 §F4: the HEADLINE's rest-weight was also 700, so the
+        // bold-off branch returned the bold weight and switching Bold off did
+        // nothing. Parity for pre-property saved reports is already carried by
+        // rateBold's default of `true` (settings.ts, makeFontControl("rate",
+        // {bold: true})) — the 700 rest-weight was belt-and-braces that cost
+        // the user the control. Label (500) and detail (400) rest-weights are
+        // genuine distinct rest states and are left exactly as they were.
         const weightFor = (bold: boolean | undefined, restWeight: string): string => bold ? "700" : restWeight;
 
         const rateFontFamily = s.rateFontFamily.value || "Segoe UI, sans-serif";
-        const rateWeight = weightFor(s.rateBold.value, "700");
+        const rateWeight = weightFor(s.rateBold.value, "400");
         const rateStyle = s.rateItalic.value ? "italic" : "normal";
         const rateDecoration = s.rateUnderline.value ? "underline" : "none";
         const rateAlignVal = String((s as any).rateAlign?.value || "left");
