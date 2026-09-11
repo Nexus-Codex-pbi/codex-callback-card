@@ -65,11 +65,23 @@ export class CallbackCardSettings extends FormattingSettingsCard {
     // the property is unset).
     rateAlign = alignSlice("rateAlign", "left");
 
+    // Headline format override (NEXUS cycle-02 §F2). The control existed and
+    // accepted input but was declared nowhere in capabilities.json and read
+    // nowhere in visual.ts — a dead control in the pane. It is now declared
+    // (additively, same object + property name this class already used) and
+    // consumed by the headline render path, with EXPLICIT PRECEDENCE over the
+    // measure's own format string.
+    //
+    // The default moved "0.0" -> "" deliberately. "" means "use the measure
+    // format", so every saved report that never touched this control renders
+    // byte-for-byte what it renders today; keeping "0.0" as the default would
+    // have forced one decimal onto every existing headline the moment the
+    // control started working.
     rateFormatString = new formattingSettings.TextInput({
         name: "rateFormatString",
         displayName: "Headline format string",
-        value: "0.0",
-        placeholder: "e.g. 0.0, 0.00, 0",
+        value: "",
+        placeholder: "Blank = use the measure format (e.g. 0.0, #,##0, $#,##0.00)",
     });
 
     rateColor1 = new formattingSettings.ColorPicker({

@@ -258,6 +258,12 @@
           },
           "displayName": "Rate Alignment"
         },
+        "rateFormatString": {
+          "type": {
+            "text": true
+          },
+          "displayName": "Rate Format String"
+        },
         "rateColor1": {
           "type": {
             "fill": {

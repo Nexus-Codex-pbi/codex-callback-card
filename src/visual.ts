@@ -193,7 +193,7 @@ export class Visual implements IVisual {
                     { displayName: "Panel", value: panel.window }
                 ];
                 if (panel.rate !== null) {
-                    items.push({ displayName: "Headline", value: this.formatValue(panel.rate, panel.rateFormat) });
+                    items.push({ displayName: "Headline", value: this.formatValue(panel.rate, this.headlineFormat(panel.rateFormat)) });
                 }
                 if (panel.callbackCount !== null) {
                     items.push({ displayName: "Metric 1", value: this.formatValue(panel.callbackCount, panel.callbackCountFormat) });
@@ -554,7 +554,7 @@ export class Visual implements IVisual {
                     : (i === 0
                         ? (this.rateColorHelper?.getColorForMeasure(instanceObjects, "rate") ?? rateColors[0])
                         : rateColors[i % rateColors.length]);
-                const displayed = this.formatValue(panel.rate, panel.rateFormat);
+                const displayed = this.formatValue(panel.rate, this.headlineFormat(panel.rateFormat));
                 const valueSel = panelDiv.append("div")
                     .attr("class", "callback-v2-value")
                     .style("font-size", `${rateFontSize}px`)
@@ -774,6 +774,20 @@ export class Visual implements IVisual {
         landing.append("div")
             .style("font-size", "12px")
             .text("Add a Panel label and a Headline value measure. Optional: Metric 1/2/3, Highlight value, Sort Order.");
+    }
+
+    /**
+     *  Headline format precedence (NEXUS cycle-02 §F2): the pane's "Headline
+     *  format string" wins over the measure's own format string when the user
+     *  has typed one. Blank/whitespace means "use the measure format", which is
+     *  the shipped default — so a saved report that never set this property
+     *  resolves to exactly the same string it resolved to before the control
+     *  was wired. Headline only; Metric 1/2/3 and Highlight keep their own
+     *  model formats.
+     */
+    private headlineFormat(modelFormat: string | null): string | null {
+        const override = String(this.formattingSettings?.callbackCardCard?.rateFormatString?.value ?? "").trim();
+        return override.length > 0 ? override : modelFormat;
     }
 
     private formatValue(n: number, format: string | null): string {
