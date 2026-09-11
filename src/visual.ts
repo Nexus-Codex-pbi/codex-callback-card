@@ -283,25 +283,10 @@ export class Visual implements IVisual {
 
             this.render(data, options.viewport.width, options.viewport.height);
 
-            // Visual's own Border card — CSS border on the outer render root
-            // (rootDiv holds title + panels), so it wraps the WHOLE card and
-            // its Corner Radius rounds the visual's own corners. Applied AFTER
-            // render() (which clears + repaints rootDiv's children) since the
-            // border is a style on rootDiv itself. border-box keeps the stroke
-            // inside the tile (no extra scrollbars); overflow:hidden lets the
-            // radius clip. fx colour honoured via the metadata objects.
-            //
-            // NEXUS cycle-02 §F5: this was a one-way switch — border ON set
-            // overflow:hidden and border OFF set nothing, so off -> on -> off
-            // left the card permanently unscrollable (515px of content in a
-            // 90px tile). applyBorder() clears border AND border-radius when
-            // the card is off (shared/borderSettings.ts:117), so with no
-            // border there is no radius left to clip and "auto" — the value
-            // the constructor gives rootDiv — is the correct restored state.
-            // Explicit both ways, per the doc's second alternative.
+            // Auto overflow clips rounded corners without disabling scrolling.
             const rootEl = this.rootDiv.node() as HTMLElement;
             rootEl.style.boxSizing = "border-box";
-            rootEl.style.overflow = this.formattingSettings.visualBorder?.show?.value ? "hidden" : "auto";
+            rootEl.style.overflow = "auto";
             applyBorder(rootEl, this.formattingSettings.visualBorder, {
                 hcActive: this.isHighContrast,
                 hcColor: this.hcForeground,
@@ -382,6 +367,10 @@ export class Visual implements IVisual {
                 titleEl.style.color = this.isHighContrast ? this.hcForeground : adaptiveTitle;
             }
             titleEl.style.padding = "8px 12px 4px";
+            titleEl.style.flexShrink = "0";
+            titleEl.style.maxWidth = "100%";
+            titleEl.style.boxSizing = "border-box";
+            titleEl.style.overflowWrap = "anywhere";
             (this.rootDiv.node() as HTMLElement).appendChild(titleEl);
         }
 
@@ -504,8 +493,8 @@ export class Visual implements IVisual {
             .style("flex-direction", isHorizontal ? "row" : "column")
             .style("gap", `${panelGap}px`)
             .style("width", "100%")
-            .style("flex", "1 1 auto")
-            .style("min-height", "0")
+            .style("flex", "1 0 auto")
+            .style("min-height", "min-content")
             .style("box-sizing", "border-box");
 
         // Trim the per-panel motion memory when the panel count shrinks.
@@ -520,6 +509,7 @@ export class Visual implements IVisual {
                 : (sideBand ? bandColor(sideBand, theme) : accentToken(theme));
 
             const panelDiv = container.append("div")
+                .attr("class", "callback-card-panel")
                 .style("flex", "1")
                 .style("background", panelBg)
                 .style("border-radius", `${panelRadius}px`)
@@ -529,7 +519,8 @@ export class Visual implements IVisual {
                 .style("align-items", "stretch")
                 .style("justify-content", "center")
                 .style("box-sizing", "border-box")
-                .style("min-width", "0")
+                .style("min-width", "min-content")
+                .style("min-height", "min-content")
                 .style("cursor", "pointer");
 
             // Tooltip on panel hover
@@ -628,6 +619,7 @@ export class Visual implements IVisual {
                     .style("margin-top", "9px")
                     .style("align-self", alignSelfFor(rateAlignVal))
                     .style("text-align", textAlignFor(rateAlignVal))
+                    .style("white-space", "nowrap")
                     .text(displayed);
                 if (this.lastDisplayValues[i] !== displayed) {
                     settle(valueSel.node() as HTMLElement, [
@@ -668,6 +660,7 @@ export class Visual implements IVisual {
                     .style("padding", "3px 9px")
                     .style("border-radius", "999px")
                     .style("line-height", "1.3")
+                    .style("white-space", "nowrap")
                     .style("color", hc.active ? hc.color
                         : readableInk(sideToken, compositeOver(sideToken, 85, panelBg), 4.6))
                     .text(chipText);
@@ -731,6 +724,7 @@ export class Visual implements IVisual {
                     .style("text-decoration", detailDecoration)
                     .style("align-self", alignSelfFor(detailAlignVal))
                     .style("text-align", textAlignFor(detailAlignVal))
+                    .style("white-space", "nowrap")
                     .text(metrics.join(" / "));
             }
 
@@ -746,7 +740,8 @@ export class Visual implements IVisual {
                     .style("text-decoration", detailDecoration)
                     .style("margin-top", "4px")
                     .style("align-self", alignSelfFor(detailAlignVal))
-                    .style("text-align", textAlignFor(detailAlignVal));
+                    .style("text-align", textAlignFor(detailAlignVal))
+                    .style("white-space", "nowrap");
 
                 if (showMetric3) {
                     metricLine.append("span")
