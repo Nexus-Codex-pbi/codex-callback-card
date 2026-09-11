@@ -75,10 +75,20 @@ export function parseDataView(dv: DataView): CallbackData | null {
     // Sort by sortOrder ascending if any panel has a sort order value
     const hasSortOrder = panels.some(p => p.sortOrder !== null);
     if (hasSortOrder) {
+        // NEXUS cycle-02 additional gap 1: BOTH one-sided null branches
+        // returned 1, so the comparator claimed "a after b" no matter which
+        // side was blank. That is not a consistent ordering, and Array.sort
+        // is only defined for consistent comparators — the rendered order for
+        // a blank Sort Order therefore depended on the INPUT order of the
+        // rows (Alpha/Beta/Gamma gave Alpha/Gamma/Beta; Gamma/Alpha/Beta gave
+        // Gamma/Alpha/Beta). A numeric rank sorts BEFORE a blank one: -1.
+        // Ties and all-null sets return 0 and keep their relative order
+        // (Array.prototype.sort is stable per spec), so equal ranks stay in
+        // the data's own order rather than being re-keyed by position.
         panels.sort((a, b) => {
             if (a.sortOrder === null && b.sortOrder === null) return 0;
             if (a.sortOrder === null) return 1;
-            if (b.sortOrder === null) return 1;
+            if (b.sortOrder === null) return -1;
             return a.sortOrder - b.sortOrder;
         });
     }
