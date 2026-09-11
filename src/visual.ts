@@ -807,6 +807,11 @@ export class Visual implements IVisual {
         this.cornerSignature?.destroy();
         this.cornerSignature = null;
         this.lastDisplayValues = [];
+        this.panelSelectionIds = [];
+        this.panelTooltipItems = [];
+        this.categoricalCategories = undefined;
+        this.rateColorHelper = null;
+        this.lostRevenueColorHelper = null;
         // Same reason as render(): the panels being cleared own listeners
         // (NEXUS cycle-02 additional gap 4).
         this.releasePanelListeners();
@@ -892,7 +897,7 @@ export class Visual implements IVisual {
             this.target.removeEventListener("contextmenu", this.contextMenuHandler);
         }
         this.contextMenuHandler = null;
-        this.rootDiv?.selectAll("*").remove();
+        this.rootDiv?.remove();
         this.rootDiv = null;
         this.target = null;
         // Panel identity/tooltip caches are per-render state, not visual
@@ -900,5 +905,9 @@ export class Visual implements IVisual {
         this.panelSelectionIds = [];
         this.panelTooltipItems = [];
         this.lastDisplayValues = [];
+        this.lastUpdateOptions = null;
+        this.categoricalCategories = undefined;
+        this.rateColorHelper = null;
+        this.lostRevenueColorHelper = null;
     }
 }
