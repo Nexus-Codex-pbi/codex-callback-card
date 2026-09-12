@@ -146,6 +146,14 @@ export class CallbackCardSettings extends FormattingSettingsCard {
         value: true,
     });
 
+    // Neil 2026-09-12: sides after the baseline carry a delta chip + "vs" line
+    // by design; a report (or a listing render) may want the sides to match.
+    showDeltaChip = new formattingSettings.ToggleSwitch({
+        name: "showDeltaChip",
+        displayName: "Show delta chip",
+        value: true,
+    });
+
     // v2 look (01-16): display names match the design board's layout terms;
     // the PERSISTED values ("horizontal"/"vertical") and the default are
     // unchanged, so every saved report's layout choice still resolves (D-16).
@@ -191,6 +199,7 @@ export class CallbackCardSettings extends FormattingSettingsCard {
         this.showMetric1,
         this.showMetric3,
         this.showHighlightValue,
+        this.showDeltaChip,
         this.layout,
         this.labelColor,
         this.detailColor,

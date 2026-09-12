@@ -699,7 +699,7 @@ export class Visual implements IVisual {
             // sub-label. Only sides with a computable delta get a chip;
             // under HC the chip drops its tinted fill for a system-colour
             // outline and pairs the arrow with a status glyph (§8).
-            if (sideDelta !== null) {
+            if (sideDelta !== null && s.showDeltaChip.value) {
                 const footerRow = panelDiv.append("div")
                     .style("display", "flex")
                     .style("align-items", "center")

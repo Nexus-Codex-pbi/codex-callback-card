@@ -392,6 +392,12 @@
           },
           "displayName": "Show Highlight Value"
         },
+        "showDeltaChip": {
+          "type": {
+            "bool": true
+          },
+          "displayName": "Show Delta Chip"
+        },
         "layout": {
           "type": {
             "enumeration": [
