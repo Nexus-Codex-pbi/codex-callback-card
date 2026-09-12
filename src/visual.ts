@@ -26,7 +26,7 @@ import { Band, Theme, accentToken, bandColor } from "./shared/bandEngine";
 import { mix, surfaceTokens, TABULAR_NUMS } from "./shared/designTokens";
 import { makeCornerBrackets, CardSignatureHandle } from "./shared/cardSignature";
 import { resolveCardSignature } from "./shared/cardSignatureSettings";
-import { resolveCodexTheme, neonColorFor, neonShadow } from "./shared/codexThemeSettings";
+import { resolveCodexTheme, neonColorFor, neonShadow, forcedInk } from "./shared/codexThemeSettings";
 import { settle } from "./shared/motion";
 import { applyHighContrast, statusGlyph } from "./shared/highContrast";
 import { applyBorder } from "./shared/borderSettings";
@@ -395,9 +395,17 @@ export class Visual implements IVisual {
             titleEl.style.textAlign = textAlignFor(titleAlignVal);
             if (t.titleColor?.value?.value) {
                 const setTitle = t.titleColor.value.value;
-                const adaptiveTitle = inkOverride || setTitle === "#1a1a2e"
-                    ? readableInk(contrastInk(outerSurface, setTitle, surfaceTokens("dark").text), outerSurface)
-                    : setTitle;
+                // Contract rule 3 (#819): an explicitly-set title ink survives a
+                // forced mode while it still reads on that mode's surface; only
+                // a pane default (or an unreadable explicit ink) takes the
+                // mode's own. Auto is untouched by construction — the mode
+                // default below is what this site already computed for the
+                // default hex.
+                const adaptiveTitle = forcedInk(
+                    setTitle,
+                    readableInk(contrastInk(outerSurface, "#1a1a2e", surfaceTokens("dark").text), outerSurface),
+                    codex,
+                    setTitle === "#1a1a2e");
                 titleEl.style.color = this.isHighContrast ? this.hcForeground : adaptiveTitle;
             }
             titleEl.style.padding = "8px 12px 4px";
@@ -456,19 +464,23 @@ export class Visual implements IVisual {
             : inkOverride ? compositeOver(codex.bgHex, codex.transparencyPct, outerSurface)
                 : resolvedPanelBgHex;
         const authoredStyle = this.lastUpdateOptions?.dataViews?.[0]?.metadata?.objects?.callbackCardStyle;
-        // "adapt only when the user left it at the default" becomes "adapt
-        // when FORCED or default" — readableInk keeps the user's hue and
-        // moves it only as far as legibility on the Codex surface requires.
+        // Contract rule 3 (#819): the suite's ONE ink rule. Auto → the user's
+        // value untouched; forced + pane default → the mode's default (the
+        // readableInk-adapted hue this site already computed); forced +
+        // explicit → the user's ink while it reads on the mode's surface.
         const defaultInk = (property: string, color: string): string =>
-            !inkOverride && authoredStyle?.[property] !== undefined ? color : readableInk(color, panelBg);
+            forcedInk(color, readableInk(color, panelBg), codex, authoredStyle?.[property] === undefined);
         const rateColors = hc.active
             ? [hc.color, hc.color]
             : [defaultInk("rateColor1", s.rateColor1.value?.value ?? "#d4920a"),
                 defaultInk("rateColor2", s.rateColor2.value?.value ?? "#007064")];
         const INK_SENTINEL = "#5e5d5a";
         const adaptiveInk = (property: string, set: string | undefined): string =>
-            !inkOverride && authoredStyle?.[property] !== undefined ? (set ?? INK_SENTINEL)
-                : readableInk(contrastInk(panelBg, INK_SENTINEL, tokens.muted), panelBg);
+            forcedInk(
+                set ?? INK_SENTINEL,
+                readableInk(contrastInk(panelBg, INK_SENTINEL, tokens.muted), panelBg),
+                codex,
+                authoredStyle?.[property] === undefined);
         const labelColor = hc.active ? hc.color : adaptiveInk("labelColor", s.labelColor.value?.value);
         const detailColor = hc.active ? hc.color : adaptiveInk("detailColor", s.detailColor.value?.value);
         const rateFontSize = s.rateFontSize.value ?? 28;
@@ -558,11 +570,17 @@ export class Visual implements IVisual {
             const sideToken = hc.active
                 ? hc.color
                 : (sideBand ? bandColor(sideBand, theme) : accentToken(theme));
-            // Neon accent for this side's chrome (dot, LED strip, delta chip):
-            // scope "flare" tints them with the picked flare colour, scope
-            // "all" leaves every colour in its own hue. Outside Neon this is
+            // Neon accent for this side's CHROME (the LED strip): scope
+            // "flare" tints it with the picked flare colour, scope "all"
+            // leaves every colour in its own hue. Outside Neon this is
             // sideToken unchanged.
             const sideAccent = hc.active ? hc.color : neonColorFor(sideToken, codex);
+            // Contract rule 1 (#819): a band verdict is DATA — the status lamp
+            // and the delta chip keep their own hue under scope "flare" and
+            // glow in it. A side with no computable delta carries the shared
+            // accent token instead of a verdict, so its dot and chip are chrome
+            // and take the flare like the rest.
+            const sideVerdict = hc.active ? hc.color : (sideBand ? sideToken : sideAccent);
 
             const panelDiv = container.append("div")
                 .attr("class", "callback-card-panel")
@@ -623,11 +641,11 @@ export class Visual implements IVisual {
                 .style("flex", "0 0 auto")
                 .style("background", hc.active
                     ? hc.color
-                    : `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${sideAccent} 35%, white), ${sideAccent} 55%, color-mix(in srgb, ${sideAccent} 55%, black))`)
+                    : `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${sideVerdict} 35%, white), ${sideVerdict} 55%, color-mix(in srgb, ${sideVerdict} 55%, black))`)
                 .style("box-shadow", codex.neon
-                    ? neonShadow(sideAccent, codex.glow)
+                    ? neonShadow(sideVerdict, codex.glow)
                     : glowMix > 0
-                        ? `0 0 8px color-mix(in srgb, ${sideAccent} ${glowMix}%, transparent)`
+                        ? `0 0 8px color-mix(in srgb, ${sideVerdict} ${glowMix}%, transparent)`
                         : "none");
 
             eyebrowRow.append("span")
@@ -726,16 +744,17 @@ export class Visual implements IVisual {
                     .style("line-height", "1.3")
                     .style("white-space", "nowrap")
                     .style("color", hc.active ? hc.color
-                        : readableInk(sideAccent, compositeOver(sideAccent, 85, panelBg), 4.6))
+                        : readableInk(sideVerdict, compositeOver(sideVerdict, 85, panelBg), 4.6))
                     .text(chipText);
                 if (hc.active) {
                     chip.style("background", "transparent")
                         .style("border", `${hc.borderWidth}px solid ${hc.color}`);
                 } else {
-                    chip.style("background", `color-mix(in srgb, ${sideAccent} 15%, transparent)`);
+                    chip.style("background", `color-mix(in srgb, ${sideVerdict} 15%, transparent)`);
                     // Neon: the delta chip is one of this card's primary data
-                    // marks, so it gains a flare it does not carry otherwise.
-                    if (codex.neon) chip.style("box-shadow", neonShadow(sideAccent, codex.glow));
+                    // marks, so it gains a flare it does not carry otherwise —
+                    // in the verdict's own hue (rule 1), never the flare tint.
+                    if (codex.neon) chip.style("box-shadow", neonShadow(sideVerdict, codex.glow));
                 }
 
                 footerRow.append("span")
