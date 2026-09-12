@@ -26,6 +26,7 @@ import { Band, Theme, accentToken, bandColor } from "./shared/bandEngine";
 import { mix, surfaceTokens, TABULAR_NUMS } from "./shared/designTokens";
 import { makeCornerBrackets, CardSignatureHandle } from "./shared/cardSignature";
 import { resolveCardSignature } from "./shared/cardSignatureSettings";
+import { resolveCodexTheme, neonColorFor, neonShadow } from "./shared/codexThemeSettings";
 import { settle } from "./shared/motion";
 import { applyHighContrast, statusGlyph } from "./shared/highContrast";
 import { applyBorder } from "./shared/borderSettings";
@@ -321,6 +322,47 @@ export class Visual implements IVisual {
         const background = this.formattingSettings.background;
         const bgHex = background.backgroundColor.value?.value ?? "#ffffff";
         const bgTransparencyPct = background.transparency.value ?? 100;
+        // The title sits on the composited outer layer, not on a panel.
+        const cbc = this.formattingSettings.callbackCardCard;
+        const PANEL_SENTINEL = "#f5f4f0";
+        const panelUserSet = (cbc.panelBackground.value?.value ?? PANEL_SENTINEL) !== PANEL_SENTINEL;
+        const reportThemeBg = (this.host.colorPalette as any)?.background?.value as string | undefined;
+        const behindHex = reportThemeBg ?? "#ffffff";
+        const autoOuterSurface = compositeOver(bgHex, bgTransparencyPct, behindHex);
+        const governingBg = this.isHighContrast ? this.hcBackground
+            : panelUserSet ? cbc.panelBackground.value!.value : autoOuterSurface;
+        const autoTheme: Theme = contrastInk(governingBg, "#000000", "#ffffff") === "#000000" ? "light" : "dark";
+
+        // ─── Nexus Codex Theme (#819) — one switch ABOVE the derivation ────
+        // Auto returns exactly the values derived above (byte-identical
+        // render); Dark/Light/Neon force the token set and own the surfaces.
+        // High contrast already collapsed to Auto inside the resolver, so no
+        // HC branch of our own is added here.
+        //
+        // This card has TWO surfaces where the KPI pilot has one, so the
+        // token set splits the way the tokens are named: the panels ARE the
+        // cards, so they take the resolved card surface (codex.bgHex), and
+        // the layer behind them takes the theme's CANVAS token. Painting both
+        // with `card` would make the panels vanish into their own backdrop
+        // (identical hex, only the hairline divider left). Both carry the
+        // card's Surface Transparency, so the page still shows through.
+        const codex = resolveCodexTheme(this.formattingSettings.codexTheme, {
+            hcActive: this.isHighContrast,
+            autoTheme,
+            autoBgHex: bgHex,
+            autoTransparencyPct: bgTransparencyPct,
+            behindHex,
+        });
+        const theme: Theme = codex.theme;
+        // A forced mode owns the TEXT inks against ITS OWN surface: a label
+        // colour chosen for a cream panel is not a choice about the Codex
+        // dark card. Accent, band, and per-instance fx colours stay the
+        // user's. Auto keeps every pane ink exactly as today.
+        const inkOverride = codex.mode !== "auto";
+        const outerSurface = inkOverride
+            ? compositeOver(surfaceTokens(theme).canvas, codex.transparencyPct, behindHex)
+            : autoOuterSurface;
+
         // NEXUS cycle-02 §F6: the outer layer painted the ORDINARY background
         // even in high contrast, while the title below took the HC foreground
         // — a user-set white background plus a white HC foreground rendered
@@ -330,18 +372,10 @@ export class Visual implements IVisual {
         // high-contrast) painting is untouched.
         this.rootDiv.style(
             "background-color",
-            this.isHighContrast ? this.hcBackground : toRgba(bgHex, bgTransparencyPct)
+            this.isHighContrast ? this.hcBackground
+                : inkOverride ? toRgba(surfaceTokens(theme).canvas, codex.transparencyPct)
+                    : toRgba(bgHex, bgTransparencyPct)
         );
-
-        // The title sits on the composited outer layer, not on a panel.
-        const cbc = this.formattingSettings.callbackCardCard;
-        const PANEL_SENTINEL = "#f5f4f0";
-        const panelUserSet = (cbc.panelBackground.value?.value ?? PANEL_SENTINEL) !== PANEL_SENTINEL;
-        const reportThemeBg = (this.host.colorPalette as any)?.background?.value as string | undefined;
-        const outerSurface = compositeOver(bgHex, bgTransparencyPct, reportThemeBg ?? "#ffffff");
-        const governingBg = this.isHighContrast ? this.hcBackground
-            : panelUserSet ? cbc.panelBackground.value!.value : outerSurface;
-        const theme: Theme = contrastInk(governingBg, "#000000", "#ffffff") === "#000000" ? "light" : "dark";
 
         // Internal title (rendered inside iframe so right-click on it satisfies
         // Policy 1180.2.5 — same approach as Heatmap Matrix). Now sourced from
@@ -361,7 +395,7 @@ export class Visual implements IVisual {
             titleEl.style.textAlign = textAlignFor(titleAlignVal);
             if (t.titleColor?.value?.value) {
                 const setTitle = t.titleColor.value.value;
-                const adaptiveTitle = setTitle === "#1a1a2e"
+                const adaptiveTitle = inkOverride || setTitle === "#1a1a2e"
                     ? readableInk(contrastInk(outerSurface, setTitle, surfaceTokens("dark").text), outerSurface)
                     : setTitle;
                 titleEl.style.color = this.isHighContrast ? this.hcForeground : adaptiveTitle;
@@ -389,7 +423,11 @@ export class Visual implements IVisual {
         // theme's elevated card token on a dark canvas (dark canvas → dark
         // cards) while preserving the cream sentinel on light (D-06 saved-
         // report parity — untouched light reports render pixel-identical).
-        const resolvedPanelBgHex = panelUserSet ? cbc.panelBackground.value!.value
+        // A forced Codex mode owns the panel surface too — the panel IS the
+        // card the contract names, and it is a surface, not one of the
+        // accent/band/data/fx colours the user keeps.
+        const resolvedPanelBgHex = inkOverride ? codex.bgHex
+            : panelUserSet ? cbc.panelBackground.value!.value
             : theme === "dark" ? surfaceTokens("dark").card
             : PANEL_SENTINEL;
         const hc = applyHighContrast(
@@ -401,22 +439,35 @@ export class Visual implements IVisual {
             { fallbackColor: s.labelColor.value?.value ?? "#5e5d5a" }
         );
         const tokens = surfaceTokens(theme);
-        // Glow budget: dark theme only, dropped entirely under HC (§8).
-        const glowMix = hc.active ? 0 : (theme === "dark" ? 55 : 0);
+        // Glow budget: dark theme only, dropped entirely under HC (§8). Neon
+        // replaces the fixed 55 with the card's own glow budget.
+        const glowMix = hc.active ? 0 : codex.neon ? codex.glow : (theme === "dark" ? 55 : 0);
         // The hairline divider (board: 1px, never a heavy rule, no shadow).
         const hairline = hc.active ? hc.color : tokens.border;
 
-        const panelBg = hc.active ? hc.background : resolvedPanelBgHex;
+        // panelPaint is what goes on the element (translucent under a forced
+        // mode); panelBg is the surface a VIEWER sees, and every ink below is
+        // judged against THAT, never against a fill nobody sees. In Auto the
+        // two are the same opaque hex — no behaviour change.
+        const panelPaint = hc.active ? hc.background
+            : inkOverride ? toRgba(codex.bgHex, codex.transparencyPct)
+                : resolvedPanelBgHex;
+        const panelBg = hc.active ? hc.background
+            : inkOverride ? compositeOver(codex.bgHex, codex.transparencyPct, outerSurface)
+                : resolvedPanelBgHex;
         const authoredStyle = this.lastUpdateOptions?.dataViews?.[0]?.metadata?.objects?.callbackCardStyle;
+        // "adapt only when the user left it at the default" becomes "adapt
+        // when FORCED or default" — readableInk keeps the user's hue and
+        // moves it only as far as legibility on the Codex surface requires.
         const defaultInk = (property: string, color: string): string =>
-            authoredStyle?.[property] !== undefined ? color : readableInk(color, panelBg);
+            !inkOverride && authoredStyle?.[property] !== undefined ? color : readableInk(color, panelBg);
         const rateColors = hc.active
             ? [hc.color, hc.color]
             : [defaultInk("rateColor1", s.rateColor1.value?.value ?? "#d4920a"),
                 defaultInk("rateColor2", s.rateColor2.value?.value ?? "#007064")];
         const INK_SENTINEL = "#5e5d5a";
         const adaptiveInk = (property: string, set: string | undefined): string =>
-            authoredStyle?.[property] !== undefined ? (set ?? INK_SENTINEL)
+            !inkOverride && authoredStyle?.[property] !== undefined ? (set ?? INK_SENTINEL)
                 : readableInk(contrastInk(panelBg, INK_SENTINEL, tokens.muted), panelBg);
         const labelColor = hc.active ? hc.color : adaptiveInk("labelColor", s.labelColor.value?.value);
         const detailColor = hc.active ? hc.color : adaptiveInk("detailColor", s.detailColor.value?.value);
@@ -507,11 +558,16 @@ export class Visual implements IVisual {
             const sideToken = hc.active
                 ? hc.color
                 : (sideBand ? bandColor(sideBand, theme) : accentToken(theme));
+            // Neon accent for this side's chrome (dot, LED strip, delta chip):
+            // scope "flare" tints them with the picked flare colour, scope
+            // "all" leaves every colour in its own hue. Outside Neon this is
+            // sideToken unchanged.
+            const sideAccent = hc.active ? hc.color : neonColorFor(sideToken, codex);
 
             const panelDiv = container.append("div")
                 .attr("class", "callback-card-panel")
                 .style("flex", "1")
-                .style("background", panelBg)
+                .style("background", panelPaint)
                 .style("border-radius", `${panelRadius}px`)
                 .style("padding", `${panelPad}px`)
                 .style("display", "flex")
@@ -567,10 +623,12 @@ export class Visual implements IVisual {
                 .style("flex", "0 0 auto")
                 .style("background", hc.active
                     ? hc.color
-                    : `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${sideToken} 35%, white), ${sideToken} 55%, color-mix(in srgb, ${sideToken} 55%, black))`)
-                .style("box-shadow", glowMix > 0
-                    ? `0 0 8px color-mix(in srgb, ${sideToken} ${glowMix}%, transparent)`
-                    : "none");
+                    : `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${sideAccent} 35%, white), ${sideAccent} 55%, color-mix(in srgb, ${sideAccent} 55%, black))`)
+                .style("box-shadow", codex.neon
+                    ? neonShadow(sideAccent, codex.glow)
+                    : glowMix > 0
+                        ? `0 0 8px color-mix(in srgb, ${sideAccent} ${glowMix}%, transparent)`
+                        : "none");
 
             eyebrowRow.append("span")
                 .style("font-size", `${labelFontSize}px`)
@@ -621,6 +679,12 @@ export class Visual implements IVisual {
                     .style("text-align", textAlignFor(rateAlignVal))
                     .style("white-space", "nowrap")
                     .text(displayed);
+                // Neon: the headline flares in its own ink (or the flare
+                // colour when scoped). The ONLY text that glows — label,
+                // detail and the "vs baseline" line never do (§ contract).
+                valueSel.style("text-shadow", codex.neon
+                    ? neonShadow(neonColorFor(resolvedRateColor, codex), codex.glow)
+                    : "");
                 if (this.lastDisplayValues[i] !== displayed) {
                     settle(valueSel.node() as HTMLElement, [
                         { opacity: 0.35, transform: "translateY(3px)" },
@@ -662,13 +726,16 @@ export class Visual implements IVisual {
                     .style("line-height", "1.3")
                     .style("white-space", "nowrap")
                     .style("color", hc.active ? hc.color
-                        : readableInk(sideToken, compositeOver(sideToken, 85, panelBg), 4.6))
+                        : readableInk(sideAccent, compositeOver(sideAccent, 85, panelBg), 4.6))
                     .text(chipText);
                 if (hc.active) {
                     chip.style("background", "transparent")
                         .style("border", `${hc.borderWidth}px solid ${hc.color}`);
                 } else {
-                    chip.style("background", `color-mix(in srgb, ${sideToken} 15%, transparent)`);
+                    chip.style("background", `color-mix(in srgb, ${sideAccent} 15%, transparent)`);
+                    // Neon: the delta chip is one of this card's primary data
+                    // marks, so it gains a flare it does not carry otherwise.
+                    if (codex.neon) chip.style("box-shadow", neonShadow(sideAccent, codex.glow));
                 }
 
                 footerRow.append("span")
@@ -698,10 +765,12 @@ export class Visual implements IVisual {
                     block.style("background", "transparent")
                         .style("border", `1px solid ${hc.color}`);
                 } else {
-                    block.style("background", sideToken)
-                        .style("box-shadow", glowMix > 0
-                            ? `0 0 6px color-mix(in srgb, ${sideToken} ${Math.max(glowMix, 35)}%, transparent)`
-                            : "none");
+                    block.style("background", sideAccent)
+                        .style("box-shadow", codex.neon
+                            ? neonShadow(sideAccent, codex.glow)
+                            : glowMix > 0
+                                ? `0 0 6px color-mix(in srgb, ${sideAccent} ${Math.max(glowMix, 35)}%, transparent)`
+                                : "none");
                 }
             }
 
@@ -789,10 +858,18 @@ export class Visual implements IVisual {
         const sigResolved = resolveCardSignature(this.formattingSettings.cardSignature, {
             autoHex: accentToken(theme), hcActive: hc.active, hcColor: hc.color, glowMix,
         });
+        // Neon: the signature is an accent, so under scope "flare" it takes the
+        // flare colour — the tint is applied to the RESOLVED hex, not to
+        // autoHex, because a report that turned Auto Color off supplies its own
+        // hex and resolveCardSignature never sees autoHex at all (measured on
+        // the authored sample: the brackets stayed cyan in every neon look).
+        // That is the contract's neonColorFor(userHex, codex). HC keeps the
+        // system colour the resolver already returned.
+        const sigHex = hc.active ? sigResolved.hex : neonColorFor(sigResolved.hex, codex);
         this.cornerSignature = sigResolved.visible
             ? makeCornerBrackets(
                 this.rootDiv.node() as HTMLElement,
-                sigResolved.hex,
+                sigHex,
                 { variant: sigResolved.variant, mirror: true, glowMix, cardRadius: panelRadius }
             )
             : null;
@@ -879,6 +956,7 @@ export class Visual implements IVisual {
         if (!this.formattingSettings) {
             this.formattingSettings = new VisualFormattingSettingsModel();
         }
+        this.formattingSettings.codexTheme.reveal();
         return this.formattingSettingsService.buildFormattingModel(this.formattingSettings);
     }
 
