@@ -21,7 +21,7 @@ import * as d3 from "d3";
 
 import { dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
 import { ColorHelper } from "powerbi-visuals-utils-colorutils";
-import { toRgba, compositeOver, contrastInk, contrastRatio } from "./shared/colorHelpers";
+import { toRgba, compositeOver, contrastInk, contrastRatio, surfaceTone } from "./shared/colorHelpers";
 import { Band, Theme, accentToken, bandColor } from "./shared/bandEngine";
 import { mix, surfaceTokens, TABULAR_NUMS } from "./shared/designTokens";
 import { makeCornerBrackets, CardSignatureHandle } from "./shared/cardSignature";
@@ -901,12 +901,19 @@ export class Visual implements IVisual {
         const background = this.formattingSettings?.background;
         const bgHex = background?.backgroundColor.value?.value ?? "#ffffff";
         const bgTransparencyPct = background?.transparency.value ?? 100;
-        this.rootDiv.style("background-color", this.isHighContrast
-            ? this.hcBackground : toRgba(bgHex, bgTransparencyPct));
-
         const behind = (this.host.colorPalette as any)?.background?.value ?? "#ffffff";
+        // The empty state stayed on the user's Background under a forced Codex mode
+        // (#819, left open by the Callback Card executor) — resolve the card here too.
+        const autoSurface = compositeOver(bgHex, bgTransparencyPct, behind);
+        const codex = resolveCodexTheme(this.formattingSettings?.codexTheme, {
+            hcActive: this.isHighContrast, autoTheme: surfaceTone(autoSurface),
+            autoBgHex: bgHex, autoTransparencyPct: bgTransparencyPct, behindHex: behind,
+        });
+        this.rootDiv.style("background-color", this.isHighContrast
+            ? this.hcBackground : toRgba(codex.bgHex, codex.transparencyPct));
+
         const color = this.isHighContrast ? this.hcForeground
-            : readableInk("#666666", compositeOver(bgHex, bgTransparencyPct, behind));
+            : readableInk("#666666", codex.surfaceHex);
         const landing = this.rootDiv.append("div")
             .style("width", "100%")
             .style("height", "100%")
