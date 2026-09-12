@@ -26,7 +26,7 @@ import { Band, Theme, accentToken, bandColor } from "./shared/bandEngine";
 import { mix, surfaceTokens, TABULAR_NUMS } from "./shared/designTokens";
 import { makeCornerBrackets, CardSignatureHandle } from "./shared/cardSignature";
 import { resolveCardSignature } from "./shared/cardSignatureSettings";
-import { resolveCodexTheme, neonColorFor, neonShadow, forcedInk } from "./shared/codexThemeSettings";
+import { resolveCodexTheme, neonColorFor, neonShadow, forcedInk, forcedChrome, isFxResolved } from "./shared/codexThemeSettings";
 import { settle } from "./shared/motion";
 import { applyHighContrast, statusGlyph } from "./shared/highContrast";
 import { applyBorder } from "./shared/borderSettings";
@@ -434,10 +434,16 @@ export class Visual implements IVisual {
         // A forced Codex mode owns the panel surface too — the panel IS the
         // card the contract names, and it is a surface, not one of the
         // accent/band/data/fx colours the user keeps.
-        const resolvedPanelBgHex = inkOverride ? codex.bgHex
-            : panelUserSet ? cbc.panelBackground.value!.value
+        // Contract rule 2, GUARDED (#819 pass 2): this card's ONE chrome fill
+        // with a picker behind it. Auto → exactly the value this site already
+        // computed; forced + picker at its shipped sentinel → the mode's card
+        // token; forced + a panel colour the author actually chose → that
+        // colour while it still SEPARATES from the mode's surface (≥ 1.3:1),
+        // so the picker is not made inert by Dark/Light/Neon.
+        const autoPanelBgHex = panelUserSet ? cbc.panelBackground.value!.value
             : theme === "dark" ? surfaceTokens("dark").card
             : PANEL_SENTINEL;
+        const resolvedPanelBgHex = forcedChrome(autoPanelBgHex, codex.bgHex, codex, !panelUserSet);
         const hc = applyHighContrast(
             {
                 isHighContrast: this.isHighContrast,
@@ -457,11 +463,14 @@ export class Visual implements IVisual {
         // mode); panelBg is the surface a VIEWER sees, and every ink below is
         // judged against THAT, never against a fill nobody sees. In Auto the
         // two are the same opaque hex — no behaviour change.
+        // Both forced branches read resolvedPanelBgHex, not codex.bgHex, so the
+        // guarded chrome above actually reaches the paint; with the picker at
+        // its sentinel forcedChrome returns codex.bgHex, so this is identical.
         const panelPaint = hc.active ? hc.background
-            : inkOverride ? toRgba(codex.bgHex, codex.transparencyPct)
+            : inkOverride ? toRgba(resolvedPanelBgHex, codex.transparencyPct)
                 : resolvedPanelBgHex;
         const panelBg = hc.active ? hc.background
-            : inkOverride ? compositeOver(codex.bgHex, codex.transparencyPct, outerSurface)
+            : inkOverride ? compositeOver(resolvedPanelBgHex, codex.transparencyPct, outerSurface)
                 : resolvedPanelBgHex;
         const authoredStyle = this.lastUpdateOptions?.dataViews?.[0]?.metadata?.objects?.callbackCardStyle;
         // Contract rule 3 (#819): the suite's ONE ink rule. Auto → the user's
@@ -673,12 +682,20 @@ export class Visual implements IVisual {
                 // (NEXUS cycle-02 §F1). Key by the preserved original row, the
                 // same identity the selection ID is built from at :187.
                 const instanceObjects = this.categoricalCategories?.objects?.[panel.categoryIndex];
+                // Contract rule 3's fx exemption (#819 pass 2), via the suite's
+                // ONE test: a rule-resolved headline colour differs from the
+                // pane's static swatch, and when it does the colour is DATA —
+                // painted verbatim, never through forcedInk. Replaces this
+                // site's local metadata-presence idiom
+                // (`instanceObjects?.callbackCardStyle?.rateColor1 !== undefined`).
+                const ratePaneHex = s.rateColor1.value?.value ?? "#d4920a";
+                const rateFxHex = i === 0
+                    ? this.rateColorHelper?.getColorForMeasure(instanceObjects, "rate") ?? ratePaneHex
+                    : ratePaneHex;
                 const resolvedRateColor = hc.active
                     ? hc.color
-                    : (i === 0
-                        ? (instanceObjects?.callbackCardStyle?.rateColor1 !== undefined
-                            ? this.rateColorHelper?.getColorForMeasure(instanceObjects, "rate") ?? rateColors[0]
-                            : rateColors[0])
+                    : (i === 0 && isFxResolved(rateFxHex, ratePaneHex)
+                        ? rateFxHex
                         : rateColors[i % rateColors.length]);
                 const displayed = this.formatValue(panel.rate, this.headlineFormat(panel.rateFormat));
                 const valueSel = panelDiv.append("div")
@@ -841,10 +858,14 @@ export class Visual implements IVisual {
                     // Same identity keying as the headline colour above — the
                     // sorted display index is not the category row (cycle-02 §F1).
                     const instanceObjects = this.categoricalCategories?.objects?.[panel.categoryIndex];
+                    const lostPaneHex = s.lostRevenueColor.value?.value ?? "#e60e22";
                     const rawLostColor = this.lostRevenueColorHelper?.getColorForMeasure(instanceObjects, "lostRevenue")
-                        ?? s.lostRevenueColor.value?.value ?? "#e60e22";
+                        ?? lostPaneHex;
+                    // Same suite-wide fx test as the headline above — a
+                    // rule-resolved highlight colour is data and bypasses
+                    // forcedInk; a pane swatch stays guarded by defaultInk.
                     const resolvedLostColor = hc.active ? hc.color
-                        : instanceObjects?.callbackCardStyle?.lostRevenueColor !== undefined
+                        : isFxResolved(rawLostColor, lostPaneHex)
                             ? rawLostColor : defaultInk("lostRevenueColor", rawLostColor);
                     metricLine.append("span")
                         .style("color", resolvedLostColor)
